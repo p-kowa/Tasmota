@@ -957,6 +957,9 @@ constexpr uint32_t feature[] = {
 #endif  
 #if defined(USE_I2C) && defined(USE_AP33772S)
   0x00040000 |  // xdrv_119_i2c_ap33772s
+#endif
+#if defined(USE_MBUSSOILSENSOR)
+  0x80000000 |  // xsns_118_mbussoil.ino
 #endif  
 //  0x00080000 |  // 
 //  0x00100000 |  // 
