@@ -16,14 +16,13 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 #ifdef USE_I2C
 #ifdef USE_QMC5883L
 /*********************************************************************************************\
  * QMC5883L is 3-Axis Digital Compass sensor
  *
  * I2C Address: 0x0D
- * 
+ *
  * #define QMC5883L_OVERSAMPLE  0     // 0 .. 3 => over Sample Ratio : 512, 256, 128, 64
  * #define QMC5883L_GAUSS       1     // 0 .. 1 => full Scale : 2GAUSS, 8GAUSS
  * #define QMC5883L_FILTER      0     // 0 .. 3 => Output Data Rate : 10HZ, 50HZ, 109HZ, 200HZ
@@ -32,10 +31,10 @@
 \*********************************************************************************************/
 
 #ifndef QMC5883L_TEMP_SHIFT
-#define QMC5883L_TEMP_SHIFT             23.0f   // sensor temperature is not calibrated (only relativ measurement) and need an absolute ground value in °C (see datasheet)
+#define QMC5883L_TEMP_SHIFT 23.0f // sensor temperature is not calibrated (only relativ measurement) and need an absolute ground value in °C (see datasheet)
 #endif
 #ifndef QMC5883L_DECIMAL
-  #define QMC5883L_DECIMAL                         4
+#define QMC5883L_DECIMAL 4
 #endif
 
 /*
@@ -74,18 +73,18 @@
   0CH     Reserved                                                        Read only
   0DH     Reserved                                                        Read only
 /* Register numbers */
-#define QMC5883L_X_LSB                  0x00
-#define QMC5883L_X_MSB                  0x01
-#define QMC5883L_Y_LSB                  0x02
-#define QMC5883L_Y_MSB                  0x03
-#define QMC5883L_Z_LSB                  0x04
-#define QMC5883L_Z_MSB                  0x05
-#define QMC5883L_STATUS                 0x06
-#define QMC5883L_TEMP_LSB               0x07
-#define QMC5883L_TEMP_MSB               0x08
-#define QMC5883L_CONFIG                 0x09
-#define QMC5883L_CONFIG2                0x0a
-#define QMC5883L_RESET                  0x0b // SET/RESET Period it is recommended that the register 0BH is written by 0x01.
+#define QMC5883L_X_LSB 0x00
+#define QMC5883L_X_MSB 0x01
+#define QMC5883L_Y_LSB 0x02
+#define QMC5883L_Y_MSB 0x03
+#define QMC5883L_Z_LSB 0x04
+#define QMC5883L_Z_MSB 0x05
+#define QMC5883L_STATUS 0x06
+#define QMC5883L_TEMP_LSB 0x07
+#define QMC5883L_TEMP_MSB 0x08
+#define QMC5883L_CONFIG 0x09
+#define QMC5883L_CONFIG2 0x0a
+#define QMC5883L_RESET 0x0b // SET/RESET Period it is recommended that the register 0BH is written by 0x01.
 // #define QMC5883L_RESERVED               0x0c
 /*
   9.2 Register Definition
@@ -103,9 +102,9 @@
          *   Field Range = ±8G 3000 LSB/G  --> factor = 30
 */
 #if QMC5883L_GAUSS == 0
-  #define QMC5883L_FACTOR                        120.0f
+#define QMC5883L_FACTOR 120.0f
 #else
-  #define QMC5883L_FACTOR                        30.0f
+#define QMC5883L_FACTOR 30.0f
 #endif
 
 /*
@@ -127,8 +126,8 @@
   Addr. 7     6     5     4     3     2     1     0
    06H                               DOR   OVL   DRDY
 */
-#define QMC5883L_STATUS_DRDY            1
-#define QMC5883L_STATUS_OVL             2
+#define QMC5883L_STATUS_DRDY 1
+#define QMC5883L_STATUS_OVL 2
 // #define QMC5883L_STATUS_DOR             4
 /*
   Data Ready Register (DRDY), it is set when all three axis data is ready, and loaded to the output data registers in
@@ -176,7 +175,7 @@
   Table 18. Control Register 1
   Addr 7    6     5     4     3     2     1     0
   09H  OSR[1:0]  RNG[1:0]     ODR[1:0]    MODE[1:0]
-  
+
   Reg.      Definition          00          01            10          11
   Mode      Mode Control        Standby     Continuous    Reserve     Reserve
   ODR       Output Data Rate    10Hz        50Hz          100Hz       200Hz
@@ -184,11 +183,11 @@
   OSR       Over Sample Ratio   512         256           128         64
 */
 // #define QMC5883L_CONFIG_STANDBY         0b00000000
-  #define QMC5883L_CONFIG_CONT            0b00000001
-  #define QMC5883L_SHIFT_ODR              2                  // for QMC5883L_FILTER
-  #define QMC5883L_SHIFT_RNG              4                  // for QMC5883L_GAUSS
-  #define QMC5883L_SHIFT_OSR              6                  // for QMC5883L_OVERSAMPLE
-/*  
+#define QMC5883L_CONFIG_CONT 0b00000001
+#define QMC5883L_SHIFT_ODR 2 // for QMC5883L_FILTER
+#define QMC5883L_SHIFT_RNG 4 // for QMC5883L_GAUSS
+#define QMC5883L_SHIFT_OSR 6 // for QMC5883L_OVERSAMPLE
+/*
   Interrupt enabling is controlled by register INT_ENB in control register 2. Once the interrupt is enabled, it will flag
   when new data is in Data Output Registers.
   INT_ENB: “0”: enable interrupt PIN, “1”: disable interrupt PIN
@@ -203,7 +202,7 @@
   Addr.     7         6         5         4          3        2         1         0
   0AH       SOFT_RST  ROL_PNT                                                     INT_ENB
 */
-#define QMC5883L_CONFIG2_RESET          0b10000000
+#define QMC5883L_CONFIG2_RESET 0b10000000
 /*
   9.2.5 SET/RESET Period Register
   SET/RESET Period is controlled by FBR [7:0], it is recommended that the register 0BH is written by 0x01.
@@ -214,87 +213,342 @@
 */
 
 // Define driver ID
-#define XSNS_33                         33
-#define XI2C_71                         71  // See I2CDEVICES.md
+#define XSNS_33 33
+#define XI2C_71 71 // See I2CDEVICES.md
 
 /* The default I2C address of this chip */
-#define QMC5883L_ADDR                   0x0D
+#define QMC5883L_ADDR 0x0D
 
-#define QMC5883L_CHIP_ID                0x0d
+#define QMC5883L_CHIP_ID 0x0d
 
 #ifndef QMC5883L_OVERSAMPLE
-  #define QMC5883L_OVERSAMPLE           1
-#elif (QMC5883L_OVERSAMPLE>3)
-  #undef QMC5883L_OVERSAMPLE
-  #define QMC5883L_OVERSAMPLE           3
+#define QMC5883L_OVERSAMPLE 1
+#elif (QMC5883L_OVERSAMPLE > 3)
+#undef QMC5883L_OVERSAMPLE
+#define QMC5883L_OVERSAMPLE 3
 #endif
 #ifndef QMC5883L_GAUSS
-  #define QMC5883L_GAUSS                1
-#elif (QMC5883L_GAUSS>1)
-  #undef QMC5883L_GAUSS
-  #define QMC5883L_GAUSS                1
+#define QMC5883L_GAUSS 1
+#elif (QMC5883L_GAUSS > 1)
+#undef QMC5883L_GAUSS
+#define QMC5883L_GAUSS 1
 #endif
 #ifndef QMC5883L_FILTER
-  #define QMC5883L_FILTER               0
-  #elif (QMC5883L_FILTER>3)
-  #undef QMC5883L_FILTER
-  #define QMC5883L_FILTER               3
+#define QMC5883L_FILTER 0
+#elif (QMC5883L_FILTER > 3)
+#undef QMC5883L_FILTER
+#define QMC5883L_FILTER 3
 #endif
-#define QMC5883L_OVL                             INFINITY
+#define QMC5883L_OVL INFINITY
+#define PAYLOAD_LENGTH 80
 
-    // data field
-struct QMC5883L_s {
-  float     MX, MY, MZ;
-  float  temp;
+#define SKALAR_MIN 10
+#define SKALAR_MAX 12
+#define REPORT_CURRENT true
+#define CHECK_SKALAR true
+#define CHECK_MAX true
+#define D_JSON_SKALARIMPULS "Impulsskalar"
+
+// data field
+struct QMC5883L_s
+{
+  float MX, MY, MZ, SKALAR;
+  float temp;
   bool ovl;
 } *QMC5883L = nullptr;
 
+float LastSkalar = 0.0;
+unsigned int LastSkalarInt = 0;
+bool foundMin = false;
+
+/*********************************************************************************************\
+ * Driver Settings load and save using filesystem
+\*********************************************************************************************/
+
+typedef struct
+{
+  uint32_t crc32;
+  bool checkskalar;
+  bool reportcurrent;
+  bool checkmax;
+  unsigned int skalarmin;
+  unsigned int skalarmax;
+  unsigned int impulscount;
+} tXsns33Settings;
+tXsns33Settings Xsns33Settings;
+
+/*********************************************************************************************/
+
+void Xsns33SettingsLoad(bool erase)
+{
+  // *** Start init default values in case file is not found ***
+  memset(&Xsns33Settings, 0x00, sizeof(tXsns33Settings));
+  // Init any other parameter in struct
+  Xsns33Settings.checkskalar = CHECK_SKALAR;
+  Xsns33Settings.reportcurrent = REPORT_CURRENT;
+  Xsns33Settings.skalarmin = SKALAR_MIN;
+  Xsns33Settings.skalarmax = SKALAR_MAX;
+  Xsns33Settings.checkmax = CHECK_MAX;
+  Xsns33Settings.impulscount = 0;
+
+#ifndef USE_UFILESYS
+  AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS33 Use defaults as file system not enabled"));
+#else
+  // Try to load file /.drvset087
+  char filename[20];
+  // Use for drivers:
+  snprintf_P(filename, sizeof(filename), PSTR(TASM_FILE_DRIVER), XSNS_33);
+  if (erase)
+  {
+    TfsDeleteFile(filename); // Use defaults
+  }
+  else if (TfsLoadFile(filename, (uint8_t *)&Xsns33Settings, sizeof(tXsns33Settings)))
+  {
+    AddLog(LOG_LEVEL_INFO, PSTR("CFG: XSNS33 loaded from file"));
+  }
+  else
+  {
+    // File system not ready: No flash space reserved for file system
+    AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS33 Use defaults as file system not ready or file not found"));
+  }
+#endif // USE_UFILESYS
+}
+
+void Xsns33SettingsSave(void)
+{
+#ifdef USE_UFILESYS
+  // Called from FUNC_SAVE_SETTINGS every SaveData second and at restart
+  uint32_t crc32 = GetCfgCrc32((uint8_t *)&Xsns33Settings + 4, sizeof(tXsns33Settings) - 4); // Skip crc32
+  if (crc32 != Xsns33Settings.crc32)
+  {
+    // Try to save file /.drvset087
+    Xsns33Settings.crc32 = crc32;
+
+    char filename[20];
+    // Use for drivers:
+    snprintf_P(filename, sizeof(filename), PSTR(TASM_FILE_DRIVER), XSNS_33);
+    if (TfsSaveFile(filename, (const uint8_t *)&Xsns33Settings, sizeof(tXsns33Settings)))
+    {
+      AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS33 saved to file"));
+    }
+    else
+    {
+      // File system not ready: No flash space reserved for file system
+      AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS33 ERROR File system not ready or unable to save file"));
+    }
+  }
+#endif // USE_UFILESYS
+}
+
+bool Xsns33SettingsRestore(void)
+{
+  XdrvMailbox.data = (char *)&Xsns33Settings;
+  XdrvMailbox.index = sizeof(tXsns33Settings);
+  return true;
+}
+
+/*********************************************************************************************/
 
 // Initialise the device
-void QMC5883L_Init() {
-  if (!I2cSetDevice(QMC5883L_ADDR)) { return; }
+void QMC5883L_Init()
+{
+  if (!I2cSetDevice(QMC5883L_ADDR))
+  {
+    return;
+  }
   // Software Reset QMC5883L  #define QMC5883L_CONFIG2                0x0a
-  if (I2cWrite8(QMC5883L_ADDR, QMC5883L_CONFIG2, QMC5883L_CONFIG2_RESET) == false) { return; }
+  if (I2cWrite8(QMC5883L_ADDR, QMC5883L_CONFIG2, QMC5883L_CONFIG2_RESET) == false)
+  {
+    return;
+  }
   // SET/RESET Period it is recommended that the register 0BH is written by 0x01.
-  if (I2cWrite8(QMC5883L_ADDR, QMC5883L_RESET, 0x01) == false) { return; }
+  if (I2cWrite8(QMC5883L_ADDR, QMC5883L_RESET, 0x01) == false)
+  {
+    return;
+  }
   /* write config
   Addr 7    6     5     4     3     2     1     0
   09H   OSR[1:0]  RNG[1:0]    ODR[1:0]    MODE[1:0]  */
-  AddLog(LOG_LEVEL_DEBUG,PSTR("QMC: QMC5883L_STATUS_REG 0x%X, size of buffer %d" ), 
-    ((QMC5883L_OVERSAMPLE<<QMC5883L_SHIFT_OSR) | (QMC5883L_GAUSS<<QMC5883L_SHIFT_RNG) | (QMC5883L_FILTER<<QMC5883L_SHIFT_ODR) | QMC5883L_CONFIG_CONT), sizeof(struct QMC5883L_s));
-  if (I2cWrite8(QMC5883L_ADDR, QMC5883L_CONFIG, ((QMC5883L_OVERSAMPLE<<QMC5883L_SHIFT_OSR) | (QMC5883L_GAUSS<<QMC5883L_SHIFT_RNG) | (QMC5883L_FILTER<<QMC5883L_SHIFT_ODR) | QMC5883L_CONFIG_CONT)) == false) { return; }
+  AddLog(LOG_LEVEL_DEBUG, PSTR("QMC: QMC5883L_STATUS_REG 0x%X, size of buffer %d"),
+         ((QMC5883L_OVERSAMPLE << QMC5883L_SHIFT_OSR) | (QMC5883L_GAUSS << QMC5883L_SHIFT_RNG) | (QMC5883L_FILTER << QMC5883L_SHIFT_ODR) | QMC5883L_CONFIG_CONT), sizeof(struct QMC5883L_s));
+  if (I2cWrite8(QMC5883L_ADDR, QMC5883L_CONFIG, ((QMC5883L_OVERSAMPLE << QMC5883L_SHIFT_OSR) | (QMC5883L_GAUSS << QMC5883L_SHIFT_RNG) | (QMC5883L_FILTER << QMC5883L_SHIFT_ODR) | QMC5883L_CONFIG_CONT)) == false)
+  {
+    return;
+  }
 
   I2cSetActiveFound(QMC5883L_ADDR, "QMC5883L");
   QMC5883L = (QMC5883L_s *)calloc(1, sizeof(struct QMC5883L_s));
 }
 
-//Read the magnetic data
-void QMC5883L_read_data(void) {
+// check if skalar is growing or sinking and create an impuls if the scalar is between min and max
+void CHECK_SKALAR_VALUE(float Skalar)
+{
+  unsigned int SkalarInt = static_cast<unsigned int>(Skalar + 0.5);
+  unsigned int impuls = 0;
+  char payload[PAYLOAD_LENGTH];
+
+  // Check for division by zero
+  if (SkalarInt != LastSkalarInt)
+  {
+    if (Xsns33Settings.checkmax){
+      if (SkalarInt <= Xsns33Settings.skalarmin){
+        foundMin = true;
+      }
+      if (foundMin && (SkalarInt >= Xsns33Settings.skalarmax))
+      {
+        foundMin = false;
+        impuls = 1;
+        Xsns33Settings.impulscount++;
+      }
+      AddLog(LOG_LEVEL_DEBUG, PSTR("SKALAR differs, last: %u, current: %u, impuls: %u"), LastSkalarInt, SkalarInt, impuls);
+      if (Xsns33Settings.reportcurrent || impuls == 1)
+      {
+        snprintf_P(payload, sizeof(payload), PSTR("{\"Current\":\"%u\",\"Previous\":\"%u\",\"Impuls\":\"%u\",\"Impulscount\":\"%u\"}"), SkalarInt, LastSkalarInt, impuls, Xsns33Settings.impulscount);
+        MqttPublishPayloadPrefixTopic_P(STAT, "Skalar", payload);
+      }
+    }
+  }
+  LastSkalar = Skalar;
+  LastSkalarInt = SkalarInt;
+}
+
+// Read the magnetic data
+void QMC5883L_read_data(void)
+{
   /* check if chip is ready to provide data
     Table 15. Status Register 1
       Addr. 7     6     5     4     3     2     1     0
        06H                               DOR   OVL   DRDY
   */
- switch (I2cRead8(QMC5883L_ADDR, QMC5883L_STATUS) & (QMC5883L_STATUS_DRDY | QMC5883L_STATUS_OVL)){
-   case 1:
-     QMC5883L->ovl = false;
-     QMC5883L->MX = (float) I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_X_LSB) / QMC5883L_FACTOR;  // Select LSB register
-     QMC5883L->MY = (float) I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_Y_LSB) / QMC5883L_FACTOR;
-     QMC5883L->MZ = (float) I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_Z_LSB) / QMC5883L_FACTOR;
-     break;
-   case 3:
-      QMC5883L->ovl = true;
-      AddLog(LOG_LEVEL_DEBUG,PSTR("QMC: QMC5883L_STATUS_Overflow"));
-      QMC5883L->MX = \
-      QMC5883L->MY = \
-      QMC5883L->MZ = QMC5883L_OVL;
-      break;
-   default:
-      return;
-      break;
+  switch (I2cRead8(QMC5883L_ADDR, QMC5883L_STATUS) & (QMC5883L_STATUS_DRDY | QMC5883L_STATUS_OVL))
+  {
+  case 1:
+    QMC5883L->ovl = false;
+    QMC5883L->MX = (float)I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_X_LSB) / QMC5883L_FACTOR; // Select LSB register
+    QMC5883L->MY = (float)I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_Y_LSB) / QMC5883L_FACTOR;
+    QMC5883L->MZ = (float)I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_Z_LSB) / QMC5883L_FACTOR;
+    QMC5883L->SKALAR = (float)sqrt((QMC5883L->MX * QMC5883L->MX) + (QMC5883L->MY * QMC5883L->MY) + (QMC5883L->MZ * QMC5883L->MZ));
+    break;
+  case 3:
+    QMC5883L->ovl = true;
+    AddLog(LOG_LEVEL_DEBUG, PSTR("QMC: QMC5883L_STATUS_Overflow"));
+    QMC5883L->MX =
+        QMC5883L->MY =
+            QMC5883L->MZ = QMC5883L_OVL;
+    break;
+  default:
+    return;
+    break;
   }
   // get temperature
-  QMC5883L->temp = ConvertTemp((I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_TEMP_LSB) / 100.0f) + QMC5883L_TEMP_SHIFT);  // Temp in celsius
+  QMC5883L->temp = ConvertTemp((I2cReadS16_LE(QMC5883L_ADDR, QMC5883L_TEMP_LSB) / 100.0f) + QMC5883L_TEMP_SHIFT); // Temp in celsius
+}
+
+/*********************************************************************************************\
+ * Commands
+\*********************************************************************************************/
+
+const char Qmc5883lCommands[] PROGMEM = "Qmc5883l_|" // Prefix
+                                        "CheckSkalar|ReportCurrent|SkalarMin|SkalarMax|EraseSettings|ImpulsCount|CheckMax|Help";
+
+void (*const Qmc5883lCommand[])(void) PROGMEM = {
+    &CmndQmc5883lCheckSkalar, &CmndQmc5883lReportCurrent, &CmndQmc5883lSkalarMin, &CmndQmc5883lSkalarMax, &CmndQmc5883lEraseSettings, &CmndQmc5883lSetImpulsCount, &CmndQmc5883lCheckMax, &CmndQmc5883lHelp};
+
+/// @brief Will do the SKALAR check
+void CmndQmc5883lCheckSkalar(void)
+{
+  if ((XdrvMailbox.payload == false) || (XdrvMailbox.payload == true))
+  {
+    ResponseCmndNumber(XdrvMailbox.payload);
+    Xsns33Settings.checkskalar = XdrvMailbox.payload;
+    Xsns33SettingsSave();
+  }
+  else
+  {
+    Response_P(PSTR("to set use Qmc5883l_CheckSkalar true or false, current value is: %d"), Xsns33Settings.checkskalar);
+  }
+}
+
+/// @brief will send via MQTT current value of SKALAR, if not set will only send  impuls
+void CmndQmc5883lReportCurrent(void)
+{
+  if ((XdrvMailbox.payload == false) || (XdrvMailbox.payload == true))
+  {
+    ResponseCmndNumber(XdrvMailbox.payload);
+    Xsns33Settings.reportcurrent = XdrvMailbox.payload;
+    Xsns33SettingsSave();
+  }
+  else
+  {
+    Response_P(PSTR("to set use Qmc5883l_ReportCurrent true or false, current value is: %d"), Xsns33Settings.reportcurrent);
+  }
+}
+
+void CmndQmc5883lSkalarMin(void)
+{
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload < 32001))
+  {
+    ResponseCmndNumber(XdrvMailbox.payload);
+    Xsns33Settings.skalarmin = XdrvMailbox.payload;
+    Xsns33SettingsSave();
+  }
+  else
+  {
+    Response_P(PSTR("to set min to value use Qmc5883l_SkalarMin value, current value is: %d"), Xsns33Settings.skalarmin);
+  }
+}
+
+void CmndQmc5883lSkalarMax(void)
+{
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload < 32001))
+  {
+    ResponseCmndNumber(XdrvMailbox.payload);
+    Xsns33Settings.skalarmax = XdrvMailbox.payload;
+    Xsns33SettingsSave();
+  }
+  else
+  {
+    Response_P(PSTR("to set max to value use Qmc5883l_SkalarMax value, current value is: %d"), Xsns33Settings.skalarmax);
+  }
+}
+
+void CmndQmc5883lCheckMax(void)
+{
+  if ((XdrvMailbox.payload == false) || (XdrvMailbox.payload == true))
+  {
+    ResponseCmndNumber(XdrvMailbox.payload);
+    Xsns33Settings.checkmax = XdrvMailbox.payload;
+    Xsns33SettingsSave();
+  }
+  else
+  {
+    Response_P(PSTR("to set use Qmc5883l_CheckMax true or false, current value is: %d"), Xsns33Settings.checkmax);
+  }
+}
+
+void CmndQmc5883lSetImpulsCount(void)
+{
+  if ((XdrvMailbox.payload >= 0) && (XdrvMailbox.payload < 32001))
+  {
+    ResponseCmndNumber(XdrvMailbox.payload);
+    Xsns33Settings.impulscount = XdrvMailbox.payload;
+    Xsns33SettingsSave();
+  }
+  else
+  {
+    Response_P(PSTR("to set the ImpulsCount to value use Qmc5883l_ImpulsCount value, current value is: %d"), Xsns33Settings.impulscount);
+  }
+}
+
+void CmndQmc5883lEraseSettings(void)
+{
+  Xsns33SettingsLoad(true);
+  Response_P(PSTR("Settings file deleted"));
+}
+
+void CmndQmc5883lHelp(void)
+{
+  Response_P(PSTR("Available commands: Qmc5883l_CheckSkalar, Qmc5883l_ReportCurrent, Qmc5883l_SkalarMax, Qmc5883l_SkalarMin, Qmc5883l_EraseSettings, Qmc5883l_ImpulsCount, Qmc5883l_CheckMax, Qmc5883l_Help"));
 }
 
 /*********************************************************************************************\
@@ -304,31 +558,47 @@ void QMC5883L_read_data(void) {
 #ifdef USE_WEBSERVER
 // {s} = <tr><th>, {m} = </th><td>, {e} = </td></tr>
 const char HTTP_SNS_QMC5883L[] PROGMEM =
-    "{s}QMC5883L " D_MX "{m}%*_f " D_UNIT_MICROTESLA "{e}"             
+    "{s}QMC5883L " D_MX "{m}%*_f " D_UNIT_MICROTESLA "{e}"
     "{s}QMC5883L " D_MY "{m}%*_f " D_UNIT_MICROTESLA "{e}"
     "{s}QMC5883L " D_MZ "{m}%*_f " D_UNIT_MICROTESLA "{e}"
     "{s}QMC5883L " D_MAGNETICFLD "{m}%*_f " D_UNIT_MICROTESLA "{e}";
 #endif
 
-void QMC5883L_Show(uint8_t json) 
+void QMC5883L_Show(uint8_t json)
 {
-  float QMC5883L_MF = (float) sqrt((QMC5883L->MX * QMC5883L->MX) + (QMC5883L->MY * QMC5883L->MY) + (QMC5883L->MZ * QMC5883L->MZ));
-  if (json) {
-     ResponseAppend_P(PSTR(",\"QMC5883L\":{\"" \
-	 D_JSON_MX "\":%*_f,\"" D_JSON_MY "\":%*_f,\"" D_JSON_MZ "\":%*_f,\"" \
-	 D_JSON_MAGNETICFLD "\":%*_f,\"" D_JSON_TEMPERATURE "\":%*_f}"),\
-            QMC5883L_DECIMAL, &QMC5883L->MX, \
-	        QMC5883L_DECIMAL, &QMC5883L->MY, \
-			QMC5883L_DECIMAL, &QMC5883L->MZ, \
-			QMC5883L_DECIMAL, &QMC5883L_MF, \
-			Settings->flag2.temperature_resolution, &QMC5883L->temp);
+  // float QMC5883L_MF = (float) sqrt((QMC5883L->MX * QMC5883L->MX) + (QMC5883L->MY * QMC5883L->MY) + (QMC5883L->MZ * QMC5883L->MZ));
+  if (json)
+  {
+    if (Xsns33Settings.checkskalar)
+    {
+      ResponseAppend_P(PSTR(",\"QMC5883L\":{\"" D_JSON_MX "\":%*_f,\"" D_JSON_MY "\":%*_f,\"" D_JSON_MZ "\":%*_f,\"" D_JSON_MAGNETICFLD "\":%*_f,\"" D_JSON_SKALARIMPULS "\":%u,\"" D_JSON_TEMPERATURE "\":%*_f}"),
+                       QMC5883L_DECIMAL, &QMC5883L->MX,
+                       QMC5883L_DECIMAL, &QMC5883L->MY,
+                       QMC5883L_DECIMAL, &QMC5883L->MZ,
+                       QMC5883L_DECIMAL, &QMC5883L->SKALAR,
+                       Xsns33Settings.impulscount,
+                       Settings->flag2.temperature_resolution, &QMC5883L->temp);
+      // Xsns33Settings.impulscount =0;
+    }
+    else
+    {
+      ResponseAppend_P(PSTR(",\"QMC5883L\":{\"" D_JSON_MX "\":%*_f,\"" D_JSON_MY "\":%*_f,\"" D_JSON_MZ "\":%*_f,\"" D_JSON_MAGNETICFLD "\":%*_f,\"" D_JSON_TEMPERATURE "\":%*_f}"),
+                       QMC5883L_DECIMAL, &QMC5883L->MX,
+                       QMC5883L_DECIMAL, &QMC5883L->MY,
+                       QMC5883L_DECIMAL, &QMC5883L->MZ,
+                       QMC5883L_DECIMAL, &QMC5883L->SKALAR,
+                       Settings->flag2.temperature_resolution, &QMC5883L->temp);
+    }
+
 #ifdef USE_WEBSERVER
-  } else {
-    WSContentSend_PD(HTTP_SNS_QMC5883L, QMC5883L_DECIMAL, &QMC5883L->MX, \
-	                                    QMC5883L_DECIMAL, &QMC5883L->MY, \
-									    QMC5883L_DECIMAL, &QMC5883L->MZ, \
-										QMC5883L_DECIMAL, &QMC5883L_MF);
-     WSContentSend_Temp("QMC5883L", QMC5883L->temp);
+  }
+  else
+  {
+    WSContentSend_PD(HTTP_SNS_QMC5883L, QMC5883L_DECIMAL, &QMC5883L->MX,
+                     QMC5883L_DECIMAL, &QMC5883L->MY,
+                     QMC5883L_DECIMAL, &QMC5883L->MZ,
+                     QMC5883L_DECIMAL, &QMC5883L->SKALAR);
+    WSContentSend_Temp("QMC5883L", QMC5883L->temp);
 #endif
   }
 }
@@ -337,35 +607,46 @@ void QMC5883L_Show(uint8_t json)
  * Interface
 \*********************************************************************************************/
 
-bool Xsns33(uint32_t function) {
-  if (!I2cEnabled(XI2C_71)) { return false; }
+bool Xsns33(uint32_t function)
+{
+  if (!I2cEnabled(XI2C_71))
+  {
+    return false;
+  }
 
   bool result = false;
 
-  if (FUNC_INIT == function) {
+  if (FUNC_INIT == function)
+  {
     QMC5883L_Init();
+    Xsns33SettingsLoad(false);
   }
-  else if (QMC5883L != nullptr) {
-    switch (function) {
-    // case FUNC_COMMAND_SENSOR:
-    //   if (XSNS_33 == XdrvMailbox.index) {
-    //     result = QMC5883L_CmndSensor();
-    //   }
-    //   break;
+  else if (QMC5883L != nullptr)
+  {
+    switch (function)
+    {
     case FUNC_JSON_APPEND:
       QMC5883L_Show(1);
       break;
     case FUNC_EVERY_SECOND:
       QMC5883L_read_data();
+      if (Xsns33Settings.checkskalar)
+      {
+        CHECK_SKALAR_VALUE(QMC5883L->SKALAR);
+      }
+
       break;
 #ifdef USE_WEBSERVER
     case FUNC_WEB_SENSOR:
       QMC5883L_Show(0);
       break;
-#endif  // USE_WEBSERVER
+#endif // USE_WEBSERVER
+    case FUNC_COMMAND:
+      result = DecodeCommand(Qmc5883lCommands, Qmc5883lCommand);
+      break;
     }
   }
   return result;
 }
-#endif  // USE_QMC5883L
-#endif  // USE_I2C
+#endif // USE_QMC5883L
+#endif // USE_I2C
