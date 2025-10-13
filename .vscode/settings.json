@@ -73,6 +73,8 @@
     ],
     "C_Cpp.dimInactiveRegions": false,
     "files.associations": {
-      "cstdint": "cpp"
+      "cstdint": "cpp",
+      "functional": "cpp",
+      "ostream": "cpp"
     }
   }
