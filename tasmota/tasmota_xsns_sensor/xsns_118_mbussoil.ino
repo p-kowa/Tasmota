@@ -59,8 +59,8 @@ uint8_t txPin = Pin(GPIO_TXD); // TX pin from Tasmota config
 typedef struct
 {
   float temperature;         // Soil temperature in °C (float for precision)
-  unsigned int humidity;     // Soil humidity in % (0-100)
-  unsigned int conductivity; // Soil conductivity in µS/cm
+  uint16_t humidity;     // Soil humidity in % (0-100)
+  uint16_t conductivity; // Soil conductivity in µS/cm
   uint8_t tempCommand[8];
   uint8_t humCommand[8];
   uint8_t conductivityCommand[8];
@@ -217,17 +217,14 @@ void SensorDriverInit()
 bool testSensorConnection()
 {
   bool sensorFound = false;
-  for (size_t i = 0; i < XsnSensorSettings.numSensors; i++)
+  for (size_t i = 0; i < XsnSensorSettings.numSensors; )
   {
     uint8_t request[8];
     memcpy(request, XsnSensorData[i].humCommand, 8);
     AddLog(LOG_LEVEL_INFO, PSTR("Testing sensor %u with detection command..."), i);
     uint8_t response[10];
 
-    while (RS485Serial.available())
-    {
-      RS485Serial.read();
-    }
+    while (RS485Serial.available()) { RS485Serial.read(); }
 
     AddLogBuffer(LOG_LEVEL_DEBUG, request, 8);
 
@@ -249,19 +246,27 @@ bool testSensorConnection()
 
     AddLogBuffer(LOG_LEVEL_DEBUG, response, bytesRead);
 
-    if (bytesRead >= 7 && response[0] == request[0]  && response[1] == 0x03 && response[2] == 0x02)
+    if (bytesRead >= 7 && response[0] == request[0] && response[1] == 0x03 && response[2] == 0x02)
     {
       AddLog(LOG_LEVEL_INFO, PSTR("✓ Valid sensor response detected!"));
       sensorFound = true;
-    }else{
-      AddLog(LOG_LEVEL_INFO, PSTR("✗ Invalid sensor response."));
-      return false;
+      i++; // Only increment if sensor is valid
     }
-    
+    else
+    {
+      AddLog(LOG_LEVEL_INFO, PSTR("✗ Invalid sensor response. Removing address %u from list."), request[0]);
+      // Remove this address from the list and shift others down
+      for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++) {
+        XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
+        memcpy(&XsnSensorData[j], &XsnSensorData[j + 1], sizeof(tXsnSensorData));
+      }
+      XsnSensorSettings.numSensors--;
+      // Do not increment i, as we want to check the new sensor at this index
+    }
   }
+  Xsns150SettingsSave(); // Save updated sensor list
   return sensorFound;
 }
-
 /*
   SoilMoistureRead - Reads humidity and temperature from the sensor and updates global values.
   Called every second.
