@@ -75,6 +75,15 @@
     "files.associations": {
       "cstdint": "cpp",
       "functional": "cpp",
-      "ostream": "cpp"
+      "ostream": "cpp",
+      "array": "cpp",
+      "string": "cpp",
+      "string_view": "cpp",
+      "deque": "cpp",
+      "list": "cpp",
+      "unordered_map": "cpp",
+      "vector": "cpp",
+      "initializer_list": "cpp",
+      "condition_variable": "cpp"
     }
   }
