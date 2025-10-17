@@ -20,6 +20,10 @@
 
   License: GNU General Public License v3.0
 */
+#if !defined(ESP32)
+#error "This driver is only supported on ESP32 platforms."
+#endif
+
 #ifdef USE_MBUSSOILSENSOR
 #define XSNS_118 118
 
