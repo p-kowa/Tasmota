@@ -41,9 +41,6 @@
 #define SETADDRESS_CMD_TEMPLATE 0x06, 0x07, 0xD0, 0x00
 #define MAX_SENSORS 8
 
-// #define RS485_RX 6
-// #define RS485_TX 7
-
 // Define command arrays as constants
 uint8_t kTemplateTempRequest[5] = {TEMP_CMD_TEMPLATE};
 uint8_t kTemplateHumRequest[5] = {HUM_CMD_TEMPLATE};
@@ -52,13 +49,14 @@ uint8_t kTemplateDetectRequest[5] = {DETECTION_CMD_TEMPLATE};
 
 unsigned int currentSensor = 0;
 
-uint8_t rxPin = Pin(GPIO_RXD); // RX pin from Tasmota config
-uint8_t txPin = Pin(GPIO_TXD); // TX pin from Tasmota config
+uint8_t rxPin; // RX pin from Tasmota config
+uint8_t txPin; // TX pin from Tasmota config
+
 
 // Data structure for sensor readings
 typedef struct
 {
-  float temperature;         // Soil temperature in °C (float for precision)
+  float temperature;     // Soil temperature in °C (float for precision)
   uint16_t humidity;     // Soil humidity in % (0-100)
   uint16_t conductivity; // Soil conductivity in µS/cm
   uint8_t tempCommand[8];
@@ -78,10 +76,6 @@ tXsnSensorSettings XsnSensorSettings;
 
 HardwareSerial RS485Serial(1);
 bool sensorConnected = false;
-
-// Forward declarations
-bool testSensorConnection(uint8_t data[], uint8_t sensorAddress);
-float readSensorData(uint8_t data[], uint8_t sensorAddress);
 
 // Modbus CRC16 calculation
 uint16_t ModbusCRC16(const uint8_t *buf, uint8_t len)
@@ -114,7 +108,7 @@ void Xsns150SettingsLoad(bool erase)
   XsnSensorSettings.sensorAddresses[0] = 0x01; // Default sensor address if sensor read fails
 
 #ifndef USE_UFILESYS
-  AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS115 Use defaults as file system not enabled"));
+  AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS118 Use defaults as file system not enabled"));
 #else
   // Try to load file /.snsset115
   char filename[20];
@@ -126,7 +120,7 @@ void Xsns150SettingsLoad(bool erase)
   }
   else if (TfsLoadFile(filename, (uint8_t *)&XsnSensorSettings, sizeof(tXsnSensorSettings)))
   {
-    AddLog(LOG_LEVEL_INFO, PSTR("CFG: XSNS115 loaded from file"));
+    AddLog(LOG_LEVEL_INFO, PSTR("CFG: XSNS118 loaded from file"));
   }
   else
   {
@@ -156,8 +150,8 @@ void Xsns150SettingsSave()
     }
     else
     {
-      // File system not ready: No flash space reserved for file system
-      AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS118 ERROR File system not ready or unable to save file"));
+      Xsns150SettingsSave();
+      AddLog(LOG_LEVEL_INFO, PSTR("CFG: XSNS118 default settings saved to file"));
     }
   }
 #endif // USE_UFILESYS
@@ -188,13 +182,27 @@ void Xsns150CreateCommands()
   }
 }
 
+bool SensorSerialPinTest(){
+  if(PinUsed(GPIO_RXD) && PinUsed(GPIO_TXD)){
+    rxPin = Pin(GPIO_RXD);
+    txPin = Pin(GPIO_TXD);
+    AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Using RX pin %u and TX pin %u"), rxPin, txPin);
+    return true;
+  }
+  return false;
+}
+
 /*
   SensorDriverInit - Initializes the RS485 serial port and tests sensor connection.
   Called once at startup.
 */
 void SensorDriverInit()
 {
-  AddLog(LOG_LEVEL_INFO, PSTR("Initializing Modbus Soil Sensor Driver..."));
+  if (!SensorSerialPinTest()) {
+    AddLog(LOG_LEVEL_ERROR, PSTR("XSNS118: RX or TX pin not configured! Please set them in Module Configuration."));
+    return; // Pins not configured, abort initialization
+  }
+  AddLog(LOG_LEVEL_INFO, PSTR("Initializing Modbus Soil Sensor Driver"));
   Xsns150SettingsLoad(false);
   Xsns150CreateCommands();
   Xsns150SettingsSave();
@@ -206,6 +214,7 @@ void SensorDriverInit()
     XsnSensorData[i].conductivity = 0;
   }
 
+  AddLog(LOG_LEVEL_DEBUG, PSTR("Starting RS485 serial on RX pin %u, TX pin %u"), rxPin, txPin);
   RS485Serial.begin(4800, SERIAL_8N1, rxPin, txPin);
   sensorConnected = testSensorConnection();
 }
@@ -217,14 +226,18 @@ void SensorDriverInit()
 bool testSensorConnection()
 {
   bool sensorFound = false;
-  for (size_t i = 0; i < XsnSensorSettings.numSensors; )
+  AddLog(LOG_LEVEL_INFO, PSTR("Nummber of sensors: %u"), XsnSensorSettings.numSensors);
+  for (size_t i = 0; i < XsnSensorSettings.numSensors;)
   {
     uint8_t request[8];
     memcpy(request, XsnSensorData[i].humCommand, 8);
-    AddLog(LOG_LEVEL_INFO, PSTR("Testing sensor %u with detection command..."), i);
+    AddLog(LOG_LEVEL_INFO, PSTR("Testing sensor %u with detection humidity command..."), i+1);
     uint8_t response[10];
 
-    while (RS485Serial.available()) { RS485Serial.read(); }
+    while (RS485Serial.available())
+    {
+      RS485Serial.read();
+    }
 
     AddLogBuffer(LOG_LEVEL_DEBUG, request, 8);
 
@@ -256,7 +269,8 @@ bool testSensorConnection()
     {
       AddLog(LOG_LEVEL_INFO, PSTR("✗ Invalid sensor response. Removing address %u from list."), request[0]);
       // Remove this address from the list and shift others down
-      for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++) {
+      for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
+      {
         XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
         memcpy(&XsnSensorData[j], &XsnSensorData[j + 1], sizeof(tXsnSensorData));
       }
@@ -313,6 +327,7 @@ void readSerial(uint8_t data[], uint8_t answer[], int &bytesRead)
     }
   }
 }
+
 void SoilMoistureRead()
 {
   if (sensorConnected)
@@ -354,7 +369,7 @@ void ConfiguredSensors()
 \*********************************************************************************************/
 
 const char ModbusSoilCommands[] PROGMEM = "ModbusSoil_|" // Prefix
-                                          "GetAddress|SetAddress|AddSensor|Help";
+                                          "GetAddress|SetAddress|AddSensor|DeleteSensor|Help";
 
 void (*const ModbusSoilCommand[])(void) PROGMEM = {
     &CmndModbusSoilGetAddress,
@@ -415,6 +430,7 @@ void CmndModbusSoilSetAddress(void)
       SetCommand(detectedAddress, setAddressCmd, request);
       readSerial(request, response, bytesRead);
       AddLogBuffer(LOG_LEVEL_DEBUG, response, bytesRead);
+      ResponseCmndNumber(XdrvMailbox.payload);
     }
     else
     {
@@ -432,6 +448,7 @@ void CmndModbusSoilAddSensor(void)
   if (XsnSensorSettings.numSensors < MAX_SENSORS)
   {
     uint8_t newAddress = (uint8_t)XdrvMailbox.payload;
+    AddLog(LOG_LEVEL_DEBUG, PSTR("Adding sensor with address %u"), newAddress);
     if (newAddress == 0 || newAddress > 255)
     {
       ConfiguredSensors();
@@ -468,40 +485,50 @@ void CmndModbusSoilAddSensor(void)
 
 void CmndModbusSoilDeleteSensor(void)
 {
-  if (XsnSensorSettings.numSensors > 0)
+  if (XsnSensorSettings.numSensors == 0)
   {
-    uint8_t delAddress = (uint8_t)XdrvMailbox.payload;
-    if (delAddress == 0 || delAddress > 255)
+    Response_P(PSTR("No sensors found, this shall not happen. At least one sensor shall be configured."));
+    return;
+  }
+  uint8_t delAddress = (uint8_t)XdrvMailbox.payload;
+  if (delAddress == 0 || delAddress > 255)
+  {
+    ConfiguredSensors();
+    return;
+  }
+  bool addressFound = false;
+  for (uint8_t i = 0; i < XsnSensorSettings.numSensors; i++)
+  {
+    if (XsnSensorSettings.sensorAddresses[i] == delAddress)
     {
-      ConfiguredSensors();
-      return;
-    }
-    bool addressFound = false;
-    for (uint8_t i = 0; i < XsnSensorSettings.numSensors; i++)
-    {
-      if (XsnSensorSettings.sensorAddresses[i] == delAddress)
+      // Prevent deleting the last remaining address
+      if (XsnSensorSettings.numSensors == 1)
       {
-        addressFound = true;
-        // Shift remaining addresses down
-        for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
-        {
-          XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
-        }
-        XsnSensorSettings.numSensors--;
-        Xsns150CreateCommands();
-        Xsns150SettingsSave();
-        Response_P(PSTR("Deleted sensor with address %u. Total sensors: %u"), delAddress, XsnSensorSettings.numSensors);
-        break;
+        Response_P(PSTR("Cannot delete the last sensor address. At least one sensor (default 0x01) must remain."));
+        return;
       }
-    }
-    if (!addressFound)
-    {
-      Response_P(PSTR("Address %u not found among configured sensors."), delAddress);
+      // Prevent deleting default address 0x01 if it's the only one left
+      if (delAddress == 0x01 && XsnSensorSettings.numSensors == 1)
+      {
+        Response_P(PSTR("Cannot delete default address 0x01. At least one sensor must remain."));
+        return;
+      }
+      addressFound = true;
+      // Shift remaining addresses down
+      for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
+      {
+        XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
+      }
+      XsnSensorSettings.numSensors--;
+      Xsns150CreateCommands();
+      Xsns150SettingsSave();
+      Response_P(PSTR("Deleted sensor with address %u. Total sensors: %u"), delAddress, XsnSensorSettings.numSensors);
+      break;
     }
   }
-  else
+  if (!addressFound)
   {
-    Response_P(PSTR("No sensors to delete."));
+    Response_P(PSTR("Address %u not found among configured sensors."), delAddress);
   }
 }
 
