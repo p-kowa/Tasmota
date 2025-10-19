@@ -146,10 +146,12 @@ void Xsns150SettingsSave()
     snprintf_P(filename, sizeof(filename), PSTR(TASM_FILE_SENSOR), XSNS_118);
     if (TfsSaveFile(filename, (const uint8_t *)&XsnSensorSettings, sizeof(tXsnSensorSettings)))
     {
+      EnsureDefaultSensorAddress();
       AddLog(LOG_LEVEL_DEBUG, PSTR("CFG: XSNS118 saved to file"));
     }
     else
     {
+      EnsureDefaultSensorAddress();
       Xsns150SettingsSave();
       AddLog(LOG_LEVEL_INFO, PSTR("CFG: XSNS118 default settings saved to file"));
     }
@@ -348,22 +350,6 @@ void SoilMoistureRead()
   }
 }
 
-void ConfiguredSensors()
-{
-  if (XsnSensorSettings.numSensors == 0)
-  {
-    Response_P(PSTR("No sensors configured."));
-  }
-  else
-  {
-    Response_P(PSTR("Configured sensors (%u):"), XsnSensorSettings.numSensors);
-    for (uint8_t i = 0; i < XsnSensorSettings.numSensors; i++)
-    {
-      ResponseAppend_P(PSTR(" %u"), XsnSensorSettings.sensorAddresses[i]);
-    }
-  }
-}
-
 /*********************************************************************************************\
  * Commands
 \*********************************************************************************************/
@@ -417,12 +403,11 @@ void CmndModbusSoilSetAddress(void)
   if (bytesRead > 0)
   {
     uint8_t detectedAddress = response[0];
+    ResponseCmndNumber(XdrvMailbox.payload);
     uint8_t newAddress = (uint8_t)XdrvMailbox.payload;
 
     if ((newAddress > 0) && (newAddress < 256) && (newAddress != detectedAddress))
     {
-      ResponseCmndNumber(newAddress);
-
       // Build set address command template
       uint8_t setAddressCmd[5] = {SETADDRESS_CMD_TEMPLATE};
       setAddressCmd[4] = newAddress;
@@ -447,9 +432,9 @@ void CmndModbusSoilAddSensor(void)
 {
   if (XsnSensorSettings.numSensors < MAX_SENSORS)
   {
+    ResponseCmndNumber(XdrvMailbox.payload);
     uint8_t newAddress = (uint8_t)XdrvMailbox.payload;
-    AddLog(LOG_LEVEL_DEBUG, PSTR("Adding sensor with address %u"), newAddress);
-    if (newAddress == 0 || newAddress > 255)
+    if (newAddress == 0 || newAddress > 255 || newAddress == 157)
     {
       ConfiguredSensors();
       return;
@@ -476,6 +461,7 @@ void CmndModbusSoilAddSensor(void)
     {
       Response_P(PSTR("Invalid or duplicate address. Please enter a number between 1 and 255 that is not already used."));
     }
+    EnsureDefaultSensorAddress();
   }
   else
   {
@@ -490,8 +476,9 @@ void CmndModbusSoilDeleteSensor(void)
     Response_P(PSTR("No sensors found, this shall not happen. At least one sensor shall be configured."));
     return;
   }
+  ResponseCmndNumber(XdrvMailbox.payload);
   uint8_t delAddress = (uint8_t)XdrvMailbox.payload;
-  if (delAddress == 0 || delAddress > 255)
+  if (delAddress == 0 || delAddress > 255 || delAddress == 157)
   {
     ConfiguredSensors();
     return;
@@ -508,11 +495,6 @@ void CmndModbusSoilDeleteSensor(void)
         return;
       }
       // Prevent deleting default address 0x01 if it's the only one left
-      if (delAddress == 0x01 && XsnSensorSettings.numSensors == 1)
-      {
-        Response_P(PSTR("Cannot delete default address 0x01. At least one sensor must remain."));
-        return;
-      }
       addressFound = true;
       // Shift remaining addresses down
       for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
@@ -526,9 +508,42 @@ void CmndModbusSoilDeleteSensor(void)
       break;
     }
   }
+  // Ensure at least one default sensor address is set
+  EnsureDefaultSensorAddress();
   if (!addressFound)
   {
     Response_P(PSTR("Address %u not found among configured sensors."), delAddress);
+  }
+}
+
+/*************************************************************************************\
+* Helper Functions
+\*************************************************************************************/
+
+// Ensure at least one default sensor address is set
+void EnsureDefaultSensorAddress() {
+  if (XsnSensorSettings.numSensors == 1) {
+    XsnSensorSettings.sensorAddresses[0] = 0x01;
+    for (uint8_t i = 1; i < MAX_SENSORS; i++) {
+      XsnSensorSettings.sensorAddresses[i] = 0;
+    }
+  }
+}
+
+// Display configured sensors
+void ConfiguredSensors()
+{
+  if (XsnSensorSettings.numSensors == 0)
+  {
+    Response_P(PSTR("No sensors configured."));
+  }
+  else
+  {
+    Response_P(PSTR("Configured sensors number: (%u): Addresses: "), XsnSensorSettings.numSensors);
+    for (uint8_t i = 0; i < XsnSensorSettings.numSensors; i++)
+    {
+      ResponseAppend_P(PSTR(" %u"), XsnSensorSettings.sensorAddresses[i]);
+    }
   }
 }
 
@@ -587,6 +602,6 @@ bool Xsns118(uint32_t function)
     result = DecodeCommand(ModbusSoilCommands, ModbusSoilCommand);
     break;
   }
-  return true;
+  return result;
 }
 #endif // USE_MBUSSOILSENSOR
