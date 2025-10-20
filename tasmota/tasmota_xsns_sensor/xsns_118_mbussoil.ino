@@ -28,7 +28,7 @@
 #define XSNS_118 118
 
 // Sensor labels for Tasmota JSON and web output
-#define SENSORNAME "SEN0600"
+#define SENSORNAME "SEN0600_"
 #define SOILMTEMPERATURE "Temperature"
 #define SOILMHUMIDITY "Humidity"
 #define SOILMCONDUCTIVITY "Conductivity"
