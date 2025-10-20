@@ -28,9 +28,10 @@
 #define XSNS_118 118
 
 // Sensor labels for Tasmota JSON and web output
-#define SENSOR_SOILMTEMPERATURE "Temperature"
-#define SENSOR_SOILMHUMIDITY "Humidity"
-#define SENSOR_SOILMCONDUCTIVITY "Conductivity"
+#define SENSORNAME "SEN0600"
+#define SOILMTEMPERATURE "Temperature"
+#define SOILMHUMIDITY "Humidity"
+#define SOILMCONDUCTIVITY "Conductivity"
 // Default RS485 pin assignments (can be overridden via Tasmota web config)
 
 #define TEMP_CMD_TEMPLATE 0x03, 0x00, 0x01, 0x00, 0x01
@@ -557,16 +558,17 @@ void SoilMoistureShow(bool json)
   {
     if (json)
     {
-      ResponseAppend_P(PSTR(",\"SoilSensor%u_Humidity\":%d,\"SoilSensor%u_Temperature\":%.1f"),
-                       i + 1, (int)XsnSensorData[i].humidity, i + 1, XsnSensorData[i].temperature);
+      ResponseAppend_P(PSTR(",\"%s%u_Humidity\":%d,\"%s%u_Temperature\":%.1f"),
+                 SENSORNAME, i + 1, (int)XsnSensorData[i].humidity,
+                 SENSORNAME, i + 1, XsnSensorData[i].temperature);
     }
 #ifdef USE_WEBSERVER
     else
     {
-      WSContentSend_PD(PSTR("{s}Soil Sensor %u " SENSOR_SOILMHUMIDITY "{m}%u " D_UNIT_PERCENT "{e}"
-                            "{s}Soil Sensor %u " SENSOR_SOILMTEMPERATURE "{m}%.1f " D_UNIT_CELSIUS "{e}"),
-                       i + 1, (int)XsnSensorData[i].humidity,
-                       i + 1, XsnSensorData[i].temperature);
+      WSContentSend_PD(PSTR("{s}%s%u " SOILMHUMIDITY "{m}%u " D_UNIT_PERCENT "{e}"
+                      "{s}%s%u " SOILMTEMPERATURE "{m}%.1f " D_UNIT_CELSIUS "{e}"),
+                 SENSORNAME, i + 1, (int)XsnSensorData[i].humidity,
+                 SENSORNAME, i + 1, XsnSensorData[i].temperature);
     }
 #endif
   }
