@@ -3,29 +3,47 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Development
 
-## [15.0.1.5]
+## [15.1.0.1]
 ### Added
-
+- TLS enabled ECDSA by default for ESP8266 (#24009)
+- Berry add `cb.free_cb` for extension manager (#24014)
+- Berry `light.get()` direct access to values
 
 ### Breaking Changed
 
 ### Changed
+- Refactored library UDisplay (#24007)
+- LVGL library from v9.3.0 to v9.4.0 (#24028)
+
+### Fixed
+- TLS fix ECDSA and add `SetOption165 1` to enable ECDSA in addition to RSA (#24000)
+- Extension Manager exception when `OtaUrl` is not defined or invalid
+- HASPmota exception in `cpicker` (colorwheel) (#24010)
+- Extension Manager Light Theme support and Extensions input field control
+- InfluxDb receives IPAddress as a value regression from v15.0.1.3 (#24031)
+
+### Removed
+
+
+## [Released]
+
+## [15.1.0] 20251011
+- Release Stella
+
+## [15.0.1.5] 20251011
+### Changed
 - ESP8266 platform update from 2025.09.00 to 2025.10.00 (#23971)
 - ESP32 Platform from 2025.09.30 to 2025.10.30, Framework (Arduino Core) from v3.1.3.250808 to v3.1.4 and IDF from v5.3.3.250801 to v5.3.4.250826 (#23971)
-- Extension Manager show current version in UI
+- Extension Manager show current version in UI (#23995)
 
 ### Fixed
 - Berry fixed 'be_top is non zero' warning when calling C mapped functions (#23989)
 - Berry fixed 'be_top is non zero' when `Br` command fails (#23990)
 
-### Removed
-
-
 ## [15.0.1.4] 20251002
 ### Added
 - ESP32 Extension Manager, replacing loading of Partition Wizard (#23955)
 - Berry animation framework web ui to compile DSL (#23962)
-- Berry Devices Online Extension App
 
 ### Changed
 - ESP32 Platform from 2025.08.30 to 2025.09.30, Framework (Arduino Core) from v3.1.3.250808 to v3.1.4 and IDF from v5.3.3.250801 to v5.3.4.250826 (#23888)
@@ -104,8 +122,6 @@ All notable changes to this project will be documented in this file.
 - Berry security issues in `berry_mapping` and improve documentation (#23606)
 - Berry Hue regression from #23429 (#23623)
 - AHT30 sensor start with null values after deep sleep (#23624)
-
-## [Released]
 
 ## [15.0.1] 20250614
 - Release Sharon

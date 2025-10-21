@@ -430,17 +430,17 @@ class Extension_manager
                            # for store
                           # /* Extension Store specific styles */
                           ".store-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}"
-                          ".store-stats{font-size:0.9em;color:var(--c_in);}"
+                          ".store-stats{font-size:0.9em;}"
                           ".ext-store-item{background:var(--c_bg);border-radius:0.3em;margin-bottom:5px;padding:4px;}"
                           ".ext-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;padding:5px;}"
                           ".ext-title{display:flex;align-items:center;gap:6px;flex:1;padding:0;}"
                           ".ext-name{font-weight:bold;}"
                           ".ext-version{font-size:0.8em;}"
-                          ".ext-arrow{color:var(--c_in);font-size:0.8em;}"
+                          ".ext-arrow{font-size:0.8em;}"
                           ".ext-badges{padding:0;}"
                           # ".ext-badges{margin-left:auto;gap:8px;align-items:center;}"
                           ".ext-details{width:min-content;min-width:100%;padding:0;display:none;}"
-                          ".ext-desc{color:var(--c_in);font-size:0.8em;line-height:1.4;display:block;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;padding:0 5px;}"
+                          ".ext-desc{font-size:0.8em;line-height:1.4;display:block;word-wrap:break-word;overflow-wrap:break-word;white-space:normal;padding:0 5px;}"
 
                           ".ext-actions{display:flex;gap:8px;padding:5px;}"
                           ".btn-action{padding:0 12px;line-height:1.8em;font-size:0.9em;flex:1;}"
@@ -631,7 +631,7 @@ class Extension_manager
                            "<hr style='margin:2px 0 0 0;'>"
                            "<p></p>")
     webserver.content_send(f"<form action='/ext' method='post'>"
-                            "<input type='text' id='x' name='x' placeholder='{self.ext_repo}'>"
+                            "<input type='text' id='x' name='x' placeholder='0 = User, 1 = Global' value='{self.ext_repo}'>"
                             "</form>")
 
     webserver.content_send("<p></p></fieldset><p></p>")
@@ -649,9 +649,14 @@ class Extension_manager
       var version = f"0x{tasmota.version():08X}"
 
       if !self.ext_repo
+        self.ext_repo = self.EXT_REPO   # Default
         var ota_url = tasmota.cmd("OtaUrl", true)['OtaUrl']
-        var url_parts = string.split(ota_url, "/")
-        self.ext_repo = f"{url_parts[0]}//{url_parts[2]}/extensions/" # http://otaserver/extensions/
+        if size(ota_url) > 0
+          var url_parts = string.split(ota_url, "/")
+          if url_parts.size() > 2
+            self.ext_repo = f"{url_parts[0]}//{url_parts[2]}/extensions/" # http://otaserver/extensions/
+          end
+        end
       end
       var url = f"{self.ext_repo}{self.EXT_REPO_MANIFEST}?a={arch}&v={version}"
       log(f"EXT: fetching extensions manifest '{url}'", 3)
