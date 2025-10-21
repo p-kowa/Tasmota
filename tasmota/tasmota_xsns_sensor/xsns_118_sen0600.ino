@@ -24,7 +24,7 @@
 #error "This driver is only supported on ESP32 platforms."
 #endif
 
-#ifdef USE_MBUSSOILSENSOR
+#ifdef USE_SEN0600
 #define XSNS_118 118
 
 // Sensor labels for Tasmota JSON and web output
