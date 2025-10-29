@@ -153,8 +153,7 @@ void Xsns150SettingsSave()
     else
     {
       EnsureDefaultSensorAddress();
-      Xsns150SettingsSave();
-      AddLog(LOG_LEVEL_INFO, PSTR("CFG: XSNS118 default settings saved to file"));
+      AddLog(LOG_LEVEL_WARNING, PSTR("CFG: XSNS118 failed to save settings to file, will retry later"));
     }
   }
 #endif // USE_UFILESYS
