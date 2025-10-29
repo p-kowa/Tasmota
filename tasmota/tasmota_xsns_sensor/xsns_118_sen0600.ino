@@ -34,19 +34,12 @@
 #define SOILMCONDUCTIVITY "Conductivity"
 // Default RS485 pin assignments (can be overridden via Tasmota web config)
 
-#define TEMP_CMD_TEMPLATE 0x03, 0x00, 0x01, 0x00, 0x01
-#define HUM_CMD_TEMPLATE 0x03, 0x00, 0x00, 0x00, 0x01
-#define CONDUCTIVITY_CMD_TEMPLATE 0x03, 0x00, 0x02, 0x00, 0x01
 #define DETECTION_CMD_TEMPLATE 0x03, 0x00, 0x00, 0x00, 0x01
 #define GETADDRESS_CMD_TEMPLATE 0x03, 0x07, 0xD0, 0x00, 0x01
 #define SETADDRESS_CMD_TEMPLATE 0x06, 0x07, 0xD0, 0x00
 #define MAX_SENSORS 8
+#define MAX_REGISTER_NUMBER 5
 
-// Define command arrays as constants
-uint8_t kTemplateTempRequest[5] = {TEMP_CMD_TEMPLATE};
-uint8_t kTemplateHumRequest[5] = {HUM_CMD_TEMPLATE};
-uint8_t kTemplateConductivityRequest[5] = {CONDUCTIVITY_CMD_TEMPLATE};
-uint8_t kTemplateDetectRequest[5] = {DETECTION_CMD_TEMPLATE};
 
 unsigned int currentSensor = 0;
 
@@ -70,6 +63,7 @@ tXsnSensorData XsnSensorData[MAX_SENSORS];
 typedef struct
 {
   uint8_t sensorAddresses[MAX_SENSORS]; // Array of sensor addresses
+  uint8_t registerNumber;
   uint8_t numSensors;
   uint32_t crc32;
 } tXsnSensorSettings;
@@ -102,6 +96,7 @@ void Xsns150SettingsLoad(bool erase)
   memset(&XsnSensorSettings, 0x00, sizeof(XsnSensorSettings));
   // Init any other parameter in struct
   XsnSensorSettings.numSensors = 1;
+  XsnSensorSettings.registerNumber = 2;
   if (XsnSensorSettings.numSensors > MAX_SENSORS)
   {
     XsnSensorSettings.numSensors = MAX_SENSORS;
@@ -160,30 +155,6 @@ void Xsns150SettingsSave()
 #endif // USE_UFILESYS
 }
 
-void SetCommand(uint8_t sensorAddress, uint8_t requestTemplate[], uint8_t address[])
-{
-  // Build command: address + template
-  address[0] = sensorAddress;
-  memcpy(&address[1], requestTemplate, 5); // template is 5 bytes
-  // Calculate CRC for first 6 bytes
-  uint16_t crc = ModbusCRC16(address, 6);
-  address[6] = crc & 0xFF;        // CRC low byte
-  address[7] = (crc >> 8) & 0xFF; // CRC high byte
-  AddLogBuffer(LOG_LEVEL_DEBUG, address, 8);
-}
-
-// Create command arrays for each sensor based on its address
-void Xsns150CreateCommands()
-{
-  // Create command arrays for each sensor based on its address
-  for (uint8_t i = 0; i < XsnSensorSettings.numSensors; i++)
-  {
-    uint8_t address = XsnSensorSettings.sensorAddresses[i];
-    SetCommand(address, kTemplateTempRequest, XsnSensorData[i].tempCommand);
-    SetCommand(address, kTemplateHumRequest, XsnSensorData[i].humCommand);
-    SetCommand(address, kTemplateConductivityRequest, XsnSensorData[i].conductivityCommand);
-  }
-}
 
 bool SensorSerialPinTest(){
   if(PinUsed(GPIO_RXD) && PinUsed(GPIO_TXD)){
@@ -223,32 +194,48 @@ void SensorDriverInit()
 }
 
 /*
-  testSensorConnection - Sends a Modbus command to check if the sensor responds.
-  Returns true if a valid response is received.
+  testSensorConnection - Validates that all configured sensors respond to Modbus commands.
+  Tests each sensor address and removes non-responsive addresses from the configuration.
+  Called once during driver initialization (FUNC_INIT).
+  Returns: true if at least one valid sensor was found, false if all sensors are unreachable.
 */
 bool testSensorConnection()
 {
   bool sensorFound = false;
-  AddLog(LOG_LEVEL_INFO, PSTR("Nummber of sensors: %u"), XsnSensorSettings.numSensors);
+  AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Testing %u configured sensor(s)..."), XsnSensorSettings.numSensors);
+  
   for (size_t i = 0; i < XsnSensorSettings.numSensors;)
   {
+    uint8_t sensorAddress = XsnSensorSettings.sensorAddresses[i];
+    
+    // Build test command (Modbus function 0x03 to read humidity register 0x0000)
     uint8_t request[8];
-    memcpy(request, XsnSensorData[i].humCommand, 8);
-    AddLog(LOG_LEVEL_INFO, PSTR("Testing sensor %u with detection humidity command..."), i+1);
-    uint8_t response[10];
-
+    request[0] = sensorAddress;
+    uint8_t detectionTemplate[5] = {DETECTION_CMD_TEMPLATE};
+    memcpy(&request[1], detectionTemplate, 5);
+    
+    // Calculate and append CRC
+    uint16_t crc = ModbusCRC16(request, 6);
+    request[6] = crc & 0xFF;
+    request[7] = (crc >> 8) & 0xFF;
+    
+    AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Testing sensor %u (address: %u)..."), i + 1, sensorAddress);
+    AddLogBuffer(LOG_LEVEL_DEBUG, request, 8);
+    
+    // Clear serial buffer before sending
     while (RS485Serial.available())
     {
       RS485Serial.read();
     }
-
-    AddLogBuffer(LOG_LEVEL_DEBUG, request, 8);
-
+    
+    // Send test command
     RS485Serial.write(request, 8);
     RS485Serial.flush();
-
-    delay(200);
-
+    
+    delay(200);  // Wait for sensor response
+    
+    // Read response
+    uint8_t response[10];
     int bytesRead = 0;
     unsigned long timeout = millis() + 1000;
     while (millis() < timeout && bytesRead < 10)
@@ -259,96 +246,149 @@ bool testSensorConnection()
         bytesRead++;
       }
     }
-
+    
     AddLogBuffer(LOG_LEVEL_DEBUG, response, bytesRead);
-
-    if (bytesRead >= 7 && response[0] == request[0] && response[1] == 0x03 && response[2] == 0x02)
+    
+    // Validate response: [Address][Function 0x03][ByteCount=2][Data1][Data2][CRC_L][CRC_H]
+    if (bytesRead >= 7 && response[0] == sensorAddress && response[1] == 0x03 && response[2] == 0x02)
     {
-      AddLog(LOG_LEVEL_INFO, PSTR("✓ Valid sensor response detected!"));
+      AddLog(LOG_LEVEL_INFO, PSTR("✓ Sensor %u (address: %u) responded successfully!"), i + 1, sensorAddress);
       sensorFound = true;
-      i++; // Only increment if sensor is valid
+      i++;  // Only increment if sensor is valid
     }
     else
     {
-      AddLog(LOG_LEVEL_INFO, PSTR("✗ Invalid sensor response. Removing address %u from list."), request[0]);
-      // Remove this address from the list and shift others down
+      AddLog(LOG_LEVEL_WARN, PSTR("✗ Sensor %u (address: %u) did not respond. Removing from configuration."), i + 1, sensorAddress);
+      
+      // Remove non-responsive address and shift remaining addresses down
       for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
       {
         XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
-        memcpy(&XsnSensorData[j], &XsnSensorData[j + 1], sizeof(tXsnSensorData));
       }
       XsnSensorSettings.numSensors--;
-      // Do not increment i, as we want to check the new sensor at this index
+      // Do not increment i, as we need to check the new sensor at this index
     }
   }
-  Xsns150SettingsSave(); // Save updated sensor list
+  
+  Xsns150SettingsSave();  // Save updated sensor list
+  
+  if (sensorFound)
+  {
+    AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Sensor connection test completed. %u sensor(s) available."), XsnSensorSettings.numSensors);
+  }
+  else
+  {
+    AddLog(LOG_LEVEL_ERROR, PSTR("XSNS118: No sensors found during connection test!"));
+  }
+  
   return sensorFound;
 }
+
 /*
   SoilMoistureRead - Reads humidity and temperature from the sensor and updates global values.
   Called every second.
 */
-float readSensorData(uint8_t data[], uint8_t sensorAddress)
+bool readSerial(uint8_t* request, uint8_t requestLen, uint8_t* response, int& bytesRead, int expectedLen)
 {
-
-  uint8_t response[10];
-  int bytesRead = 0;
-  // Clear receive buffer
-  readSerial(data, response, bytesRead);
-
-  float readResult = 0.0;
-  if (bytesRead >= 7 && response[0] == sensorAddress && response[1] == 0x03 && response[2] == 0x02)
-  {
-    uint16_t tempRaw = (response[3] << 8) | response[4];
-    readResult = tempRaw / 10.0;
-  }
-  return readResult;
-}
-
-void readSerial(uint8_t data[], uint8_t answer[], int &bytesRead)
-{
-  while (RS485Serial.available())
-  {
-    RS485Serial.read();
-  }
-
-  // Send command
-  RS485Serial.write(data, 8);
+  bytesRead = 0;
+  while (RS485Serial.available()) RS485Serial.read();
+  RS485Serial.write(request, requestLen);      // ← FLEXIBLE: any request length
   RS485Serial.flush();
-
-  delay(200);
-
-  // Read response
+  delay(100);                                   
+  
   unsigned long timeout = millis() + 1000;
-
-  while (millis() < timeout && bytesRead < 10)
+  while (millis() < timeout && bytesRead < expectedLen)  // ← FLEXIBLE: any response length
   {
     if (RS485Serial.available())
     {
-      answer[bytesRead] = RS485Serial.read();
+      response[bytesRead] = RS485Serial.read();
       bytesRead++;
     }
   }
+  return (bytesRead == expectedLen);  // ← Returns success/failure
+}
+
+// Read multiple registers in one Modbus call
+bool ReadSensorRegisters(uint8_t sensorAddress, uint8_t quantity, uint16_t* registers)
+{
+  if (quantity == 0 || quantity > MAX_REGISTER_NUMBER) 
+    return false;
+  
+  // Build Modbus request: Function 0x03 (Read Holding Registers)
+  uint8_t request[8];
+  request[0] = sensorAddress;
+  request[1] = 0x03;           // Function code
+  request[2] = 0x00;           // Start address high byte
+  request[3] = 0x00;           // Start address low byte
+  request[4] = 0x00;           // Quantity high byte
+  request[5] = quantity;       // Quantity low byte
+  
+  uint16_t crc = ModbusCRC16(request, 6);
+  request[6] = crc & 0xFF;
+  request[7] = (crc >> 8) & 0xFF;
+  
+  // Send request and read response
+  uint8_t response[11];  // Max: 1+1+1+(5*2)+2 = 11 bytes
+  int bytesRead = 0;
+  int expectedLen = 5 + quantity * 2;
+  
+  if (!readSerial(request, 8, response, bytesRead, expectedLen))
+    return false;
+  
+  // Validate response header
+  if (response[0] != sensorAddress) return false;
+  if (response[1] != 0x03) return false;
+  if (response[2] != quantity * 2) return false;
+  
+  // Validate CRC
+  uint16_t calcCRC = ModbusCRC16(response, bytesRead - 2);
+  uint16_t recvCRC = (response[bytesRead-1] << 8) | response[bytesRead-2];
+  if (calcCRC != recvCRC) return false;
+  
+  // Extract registers
+  for (uint8_t i = 0; i < quantity; i++)
+  {
+    int dataIdx = 3 + (i * 2);
+    registers[i] = (response[dataIdx] << 8) | response[dataIdx + 1];
+  }
+  
+  return true;
 }
 
 void SoilMoistureRead()
 {
   if (sensorConnected)
   {
-    XsnSensorData[currentSensor].temperature = readSensorData(XsnSensorData[currentSensor].tempCommand, XsnSensorSettings.sensorAddresses[currentSensor]);
-    XsnSensorData[currentSensor].humidity = (unsigned int)readSensorData(XsnSensorData[currentSensor].humCommand, XsnSensorSettings.sensorAddresses[currentSensor]);
-    XsnSensorData[currentSensor].conductivity = (unsigned int)readSensorData(XsnSensorData[currentSensor].conductivityCommand, XsnSensorSettings.sensorAddresses[currentSensor]);
-    AddLog(LOG_LEVEL_DEBUG, PSTR("Sensor %u - Temp: %.1f °C, Humidity: %u %%, Conductivity: %u µS/cm"), currentSensor, XsnSensorData[currentSensor].temperature, XsnSensorData[currentSensor].humidity, XsnSensorData[currentSensor].conductivity);
+    uint16_t registers[MAX_REGISTER_NUMBER];
+    
+    if (ReadSensorRegisters(XsnSensorSettings.sensorAddresses[currentSensor], 
+                            XsnSensorSettings.registerNumber, 
+                            registers))
+    {
+      // Register 0 = Humidity * 10
+      XsnSensorData[currentSensor].humidity = (registers[0] > 0) ? registers[0] / 10 : 0;
+      
+      // Register 1 = Temperature * 10
+      if (XsnSensorSettings.registerNumber >= 2)
+        XsnSensorData[currentSensor].temperature = (registers[1] > 0) ? registers[1] / 10.0 : 0;
+      
+      // Register 2 = Conductivity (if requested)
+      if (XsnSensorSettings.registerNumber >= 3)
+        XsnSensorData[currentSensor].conductivity = (registers[2] > 0) ? registers[2] : 0;
+      
+      AddLog(LOG_LEVEL_DEBUG, PSTR("Sensor %u - Temp: %.1f °C, Humidity: %u %%, Conductivity: %u µS/cm"), 
+             currentSensor, XsnSensorData[currentSensor].temperature, 
+             XsnSensorData[currentSensor].humidity, XsnSensorData[currentSensor].conductivity);
+    }
+    else
+    {
+      AddLog(LOG_LEVEL_DEBUG, PSTR("Sensor %u: read failed."), currentSensor);
+    }
   }
-  else
-  {
-    AddLog(LOG_LEVEL_DEBUG, PSTR("Sensor not connected, skipping read."));
-  }
+  
   currentSensor++;
   if (currentSensor >= XsnSensorSettings.numSensors)
-  {
     currentSensor = 0;
-  }
 }
 
 /*********************************************************************************************\
@@ -356,18 +396,19 @@ void SoilMoistureRead()
 \*********************************************************************************************/
 
 const char ModbusSoilCommands[] PROGMEM = "ModbusSoil_|" // Prefix
-                                          "GetAddress|SetAddress|AddSensor|DeleteSensor|Help";
+                                          "GetAddress|SetAddress|SetRegisters|AddSensor|DeleteSensor|Help";
 
 void (*const ModbusSoilCommand[])(void) PROGMEM = {
     &CmndModbusSoilGetAddress,
     &CmndModbusSoilSetAddress,
+    &CmndModbusSoilSetRegisters,
     &CmndModbusSoilAddSensor,
     &CmndModbusSoilDeleteSensor,
     &CmndModbusSoilHelp};
 
 void CmndModbusSoilHelp(void)
 {
-  Response_P(PSTR("Available commands: ModbusSoil_GetAddress, ModbusSoil_SetAddress, ModbusSoil_AddSensor, ModbusSoil_DeleteSensor, ModbusSoil_Help"));
+  Response_P(PSTR("Available commands: ModbusSoil_GetAddress, ModbusSoil_SetAddress, ModbusSoil_SetRegisters, ModbusSoil_AddSensor, ModbusSoil_DeleteSensor, ModbusSoil_Help"));
 }
 
 void CmndModbusSoilGetAddress(void)
@@ -426,6 +467,22 @@ void CmndModbusSoilSetAddress(void)
   else
   {
     Response_P(PSTR("No detected address received."));
+  }
+}
+
+void CmndModbusSoilSetRegisters(void)
+{
+  ResponseCmndNumber(XdrvMailbox.payload);
+  uint8_t registerNumber = (uint8_t)XdrvMailbox.payload;
+  if (registerNumber > 0 && registerNumber <= MAX_REGISTER_NUMBER)
+  {
+    XsnSensorSettings.registerNumber = registerNumber;
+    Xsns150SettingsSave();
+    Response_P(PSTR("Set register number to %u."), registerNumber);
+  }
+  else
+  {
+    Response_P(PSTR("Invalid register number. Please enter 1, 2, 3, 4, or 5."));
   }
 }
 
