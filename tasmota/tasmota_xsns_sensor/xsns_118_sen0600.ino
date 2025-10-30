@@ -194,13 +194,15 @@ void SensorDriverInit()
 bool testSensorConnection()
 {
   bool sensorFound = false;
+  const uint8_t testQuantity = 1;  // We're testing with 1 register
+  
   AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Testing %u configured sensor(s)..."), XsnSensorSettings.numSensors);
   
   for (size_t i = 0; i < XsnSensorSettings.numSensors;)
   {
     uint8_t sensorAddress = XsnSensorSettings.sensorAddresses[i];
     
-    // Build test command (Modbus function 0x03 to read humidity register 0x0000)
+    // Build test command (Modbus function 0x03 to read 1 humidity register 0x0000)
     uint8_t request[8];
     request[0] = sensorAddress;
     uint8_t detectionTemplate[5] = {DETECTION_CMD_TEMPLATE};
@@ -241,12 +243,31 @@ bool testSensorConnection()
     
     AddLogBuffer(LOG_LEVEL_DEBUG, response, bytesRead);
     
-    // Validate response: [Address][Function 0x03][ByteCount=2][Data1][Data2][CRC_L][CRC_H]
-    if (bytesRead >= 7 && response[0] == sensorAddress && response[1] == 0x03 && response[2] == 0x02)
+    // Validate response: [Address][Function 0x03][ByteCount][Data1][Data2][CRC_L][CRC_H]
+    // ByteCount should be testQuantity * 2 (1 register = 2 bytes of data)
+    uint8_t expectedByteCount = testQuantity * 2;
+    if (bytesRead >= 7 && response[0] == sensorAddress && response[1] == 0x03 && response[2] == expectedByteCount)
     {
-      AddLog(LOG_LEVEL_INFO, PSTR("✓ Sensor %u (address: %u) responded successfully!"), i + 1, sensorAddress);
-      sensorFound = true;
-      i++;  // Only increment if sensor is valid
+      // Also validate CRC
+      uint16_t calcCRC = ModbusCRC16(response, bytesRead - 2);
+      uint16_t recvCRC = (response[bytesRead-1] << 8) | response[bytesRead-2];
+      
+      if (calcCRC == recvCRC)
+      {
+        AddLog(LOG_LEVEL_INFO, PSTR("✓ Sensor %u (address: %u) responded successfully!"), i + 1, sensorAddress);
+        sensorFound = true;
+        i++;  // Only increment if sensor is valid
+      }
+      else
+      {
+        AddLog(LOG_LEVEL_DEBUG, PSTR("✗ Sensor %u (address: %u) - CRC validation failed. Removing from configuration."), i + 1, sensorAddress);
+        // Remove non-responsive address and shift remaining addresses down
+        for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
+        {
+          XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
+        }
+        XsnSensorSettings.numSensors--;
+      }
     }
     else
     {
@@ -258,7 +279,6 @@ bool testSensorConnection()
         XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
       }
       XsnSensorSettings.numSensors--;
-      // Do not increment i, as we need to check the new sensor at this index
     }
   }
   
