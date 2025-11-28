@@ -36,9 +36,9 @@ While fallback or downgrading is common practice it was never supported due to S
 
 This release will be supported from ESP8266/Arduino library Core version **2.7.8** due to reported security and stability issues on previous Core version. This will also support gzipped binaries.
 
-This release will be supported from ESP32/Arduino library Core version **v3.1.4**.
+This release will be supported from ESP32/Arduino library Core version **v3.1.6**.
 
-Support of ESP8266 Core versions before 2.7.8 and ESP32 Core versions before v3.1.4 have been removed.
+Support of ESP8266 Core versions before 2.7.8 and ESP32 Core versions before v3.1.6 have been removed.
 
 ## Initial configuration tools
 
@@ -76,7 +76,7 @@ Historical binaries can be downloaded from
 The latter links can be used for OTA upgrades too like ``OtaUrl http://ota.tasmota.com/tasmota/release/tasmota.bin.gz``
 
 ### ESP32, ESP32-C2, ESP32-C3, ESP32-C5, ESP32-C6, ESP32-P4, ESP32-S2 and ESP32-S3 based
-The following binary downloads have been compiled with ESP32/Arduino library core version **v3.1.4**.
+The following binary downloads have been compiled with ESP32/Arduino library core version **v3.1.6**.
 
 - **tasmota32.bin** = The Tasmota version with most drivers including additional sensors and KNX for 4M+ flash.  **RECOMMENDED RELEASE BINARY**
 - **tasmota32solo1.bin** = The Tasmota version with most drivers including additional sensors and KNX for single core ESP32 and 4M+ flash.
@@ -112,22 +112,47 @@ The latter links can be used for OTA upgrades too like ``OtaUrl https://ota.tasm
 
 [Complete list](BUILDS.md) of available feature and sensors.
 
-## Changelog v15.1.0.1
+## Changelog v15.1.0.3
 ### Added
+- Support for ESP32-P4 rev.3 [#24146](https://github.com/arendst/Tasmota/issues/24118)
+- Support for Analog Gauges [#24153](https://github.com/arendst/Tasmota/issues/24153)
+- Support for MakeSkyBlue Solar Charger Energy Monitor [#24151](https://github.com/arendst/Tasmota/issues/24151)
+- Commands `DaliSend` and `DaliQuery` allow extended commands with prefix for DeviceType defaulting to DT6
+- ESP8266 GPIOViewer memory map if enabled with `#define GV_USE_ESPINFO`
+- HostedMCU file update using command `HostedLoad <version>|<filename>`
+- Scripter array transfer via UFS [#24060](https://github.com/arendst/Tasmota/issues/24060)
+- DALI DT8 RGBWAF color support using Tasmota light control
+- NeoPool command `NPReadLSB`, `NPReadMSB`, `NPWriteLSB`, `NWriteMSB` for directly read/write LSB/MSB of 16-bit register [#24083](https://github.com/arendst/Tasmota/issues/24083)
 - TLS enabled ECDSA by default for ESP8266 [#24009](https://github.com/arendst/Tasmota/issues/24009)
-- Berry add `cb.free_cb` for extension manager [#24014](https://github.com/arendst/Tasmota/issues/24014)
+- WS2812 and Berry animation support for reverse-order LED strip [#24138](https://github.com/arendst/Tasmota/issues/24138)
+- Berry `cb.free_cb` for extension manager [#24014](https://github.com/arendst/Tasmota/issues/24014)
+- Berry `light.get()` direct access to values [#24033](https://github.com/arendst/Tasmota/issues/24033)
+- Berry `gc_heap` and `gc_time` to `tasmota.memory()` [#24054](https://github.com/arendst/Tasmota/issues/24054)
+- Berry `tcp.write()` add `offset` and `len` [#24076](https://github.com/arendst/Tasmota/issues/24076)
 
 ### Breaking Changed
 
 ### Changed
+- ESP32 Platform from 2025.11.30 to 2025.11.31, Framework (Arduino Core) from v3.1.5 to v3.1.6 and IDF from v5.3.4.250826 to v5.3.4.251110 [#24146](https://github.com/arendst/Tasmota/issues/24118)
 - LVGL library from v9.3.0 to v9.4.0 [#24028](https://github.com/arendst/Tasmota/issues/24028)
+- JPEGDEC library from v1.8.3 to v1.8.4 [#24120](https://github.com/arendst/Tasmota/issues/24120)
+- GPIOViewer from v1.6.3 to v1.7.0
 - Refactored library UDisplay [#24007](https://github.com/arendst/Tasmota/issues/24007)
+- Refactored DALI using TasmotaDali library v1.0.0 adding frame receive buffer
+- Increased filesystem file name size from 48 to 50 characters
 
 ### Fixed
 - InfluxDb receives IPAddress as a value regression from v15.0.1.3 [#24031](https://github.com/arendst/Tasmota/issues/24031)
+- Scripter UDP and switch case [#24060](https://github.com/arendst/Tasmota/issues/24060)
+- TuyaMCU v1 soft lock when WIFI_SELECT / WIFI_RESET is initiated [#24063](https://github.com/arendst/Tasmota/issues/24063)
+- PCA9685 V2 driver PWMTO fading logic and overflow [#24159](https://github.com/arendst/Tasmota/issues/24159)
+- DALI protocol errors
 - TLS fix ECDSA and add `SetOption165 1` to enable ECDSA in addition to RSA [#24000](https://github.com/arendst/Tasmota/issues/24000)
+- ESP32-P4 Hosted MCU updated to v2.6.6 solving WiFi boot issues [#24146](https://github.com/arendst/Tasmota/issues/24118)
+- ESP32-Solo1 using pre-compiled Arduino libraries [#24146](https://github.com/arendst/Tasmota/issues/24118)
 - Extension Manager exception when `OtaUrl` is not defined or invalid
 - Extension Manager Light Theme support and Extensions input field control
 - HASPmota exception in `cpicker` (colorwheel) [#24010](https://github.com/arendst/Tasmota/issues/24010)
+- HASPmota `scale` and `angle` for images (#24089)[#24089](https://github.com/arendst/Tasmota/issues/24089)
 
 ### Removed

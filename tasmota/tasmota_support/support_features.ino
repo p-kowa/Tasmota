@@ -947,7 +947,7 @@ constexpr uint32_t feature[] = {
   0x00004000 |  // xnrg_25_v9240.ino
 #endif
 #ifdef USE_TELNET
-  0x00008000 |  // xdrv_80_telnet.ino
+  0x00008000 |  // xdrv_78_telnet.ino
 #endif
 #ifdef USE_XYZMODEM
   0x00010000 |  // xdrv_120_xyzmodem.ino
@@ -961,7 +961,9 @@ constexpr uint32_t feature[] = {
 #if defined(USE_SEN0600)
   0x80000000 |  // xsns_118_sen0600.ino
 #endif  
-//  0x00080000 |  // 
+#ifdef USE_VID6608
+  0x00080000 |  // xdrv_92_vid6608.ino
+#endif
 //  0x00100000 |  // 
 //  0x00200000 |  // 
 //  0x00400000 |  // 

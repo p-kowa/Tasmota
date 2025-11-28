@@ -15,7 +15,7 @@ class SparkleAnimation : animation.animation
   var last_update        # Last update time for frame timing
   
   # Parameter definitions following parameterized class specification
-  static var PARAMS = encode_constraints({
+  static var PARAMS = animation.enc_params({
     "color": {"default": 0xFFFFFFFF},
     "back_color": {"default": 0xFF000000},
     "density": {"min": 0, "max": 255, "default": 30},
@@ -61,7 +61,7 @@ class SparkleAnimation : animation.animation
   
   # Initialize buffers based on current strip length
   def _initialize_buffers()
-    var current_strip_length = self.engine.get_strip_length()
+    var current_strip_length = self.engine.strip_length
     
     self.current_colors.resize(current_strip_length)
     self.sparkle_states.resize(current_strip_length)
@@ -113,7 +113,7 @@ class SparkleAnimation : animation.animation
   
   # Update sparkle states and create new sparkles
   def _update_sparkles(time_ms)
-    var current_strip_length = self.engine.get_strip_length()
+    var current_strip_length = self.engine.strip_length
     
     # Cache parameter values for performance
     var sparkle_duration = self.sparkle_duration
@@ -206,7 +206,7 @@ class SparkleAnimation : animation.animation
     # Auto-fix time_ms and start_time
     time_ms = self._fix_time_ms(time_ms)
     
-    var current_strip_length = self.engine.get_strip_length()
+    var current_strip_length = self.engine.strip_length
     var i = 0
     while i < current_strip_length
       if i < frame.width

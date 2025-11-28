@@ -41,7 +41,7 @@ assert(default_anim.duration == 0, "Default duration should be 0 (infinite)")
 assert(default_anim.loop == false, "Default loop should be false")
 assert(default_anim.opacity == 255, "Default opacity should be 255")
 assert(default_anim.name == "animation", "Default name should be 'animation'")
-assert(default_anim.color == 0xFFFFFFFF, "Default color should be white")
+assert(default_anim.color == 0x00000000, "Default color should be transparent")
 
 # Test start method
 engine.time_ms = 1000
@@ -129,8 +129,8 @@ assert(param_anim.set_param("priority", -1) == false, "Value below min should be
 assert(param_anim.get_param("unknown", "default") == "default", "Unknown parameter should return default")
 assert(param_anim.get_param("priority", 0) == 75, "Known parameter should return current value")
 
-# Test parameter definition using _has_param and _get_param_def
-assert(param_anim._has_param("priority") == true, "Should have priority parameter")
+# Test parameter definition using has_param and _get_param_def
+assert(param_anim.has_param("priority") == true, "Should have priority parameter")
 var param_def = param_anim._get_param_def("priority")
 assert(param_def != nil, "Parameter definition should exist for static parameter")
 # Use static methods to access encoded constraint data

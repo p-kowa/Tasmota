@@ -1,8 +1,14 @@
-# ParameterizedObject - Base class for parameter management
+# ParameterizedObject - Base class for parameter management and playable behavior
 #
 # This class provides a common parameter management system that can be shared
 # between Animation and ValueProvider classes. It handles parameter validation,
 # storage, and retrieval with support for ValueProvider instances.
+#
+# It also provides the common interface for playable objects (animations and sequences)
+# that can be started, stopped, and updated over time. This enables:
+# - Unified engine management (single list instead of separate lists)
+# - Hybrid objects that combine rendering and orchestration
+# - Consistent lifecycle management (start/stop/update)
 #
 # Parameters are stored in a 'values' map and accessed via virtual instance variables
 # through member() and setmember() methods. Subclasses should not declare instance
@@ -14,12 +20,8 @@ class ParameterizedObject
   var values          # Map storing all parameter values
   var engine          # Reference to the animation engine
   var start_time      # Time when object started (ms) (int), value is set at first call to update() or render()
-  
-  # Static parameter definitions - should be overridden by subclasses
-  static var PARAMS = encode_constraints(
-    {"is_running": {"type": "bool", "default": false}
-  })   # Whether the object is active
-  
+  var is_running      # Whether the object is active
+    
   # Initialize parameter system
   #
   # @param engine: AnimationEngine - Reference to the animation engine (required)
@@ -30,6 +32,7 @@ class ParameterizedObject
     
     self.engine = engine
     self.values = {}
+    self.is_running = false
     self._init_parameter_values()
   end
   
@@ -65,25 +68,8 @@ class ParameterizedObject
   #
   # @param name: string - Parameter name to check
   # @return bool - True if parameter exists in any class in the hierarchy
-  def _has_param(name)
-    import introspect
-    
-    # Walk up the class hierarchy to find the parameter
-    var current_class = classof(self)
-    while current_class != nil
-      # Check if this class has PARAMS
-      if introspect.contains(current_class, "PARAMS")
-        var class_params = current_class.PARAMS
-        if class_params.contains(name)
-          return true
-        end
-      end
-      
-      # Move to parent class
-      current_class = super(current_class)
-    end
-    
-    return false
+  def has_param(name)
+    return (self._get_param_def(name) != nil)
   end
   
   # Private method to get parameter definition from the class hierarchy
@@ -117,13 +103,32 @@ class ParameterizedObject
   # @param name: string - Parameter name being accessed
   # @return any - Resolved parameter value (ValueProvider resolved to actual value)
   def member(name)
+    # if global.debug_animation
+    #   log(f">>> member {name=}", 3)
+    # end
     # Check if it's a parameter (either set in values or defined in PARAMS)
-    if self.values.contains(name) || self._has_param(name)
-      return self._resolve_parameter_value(name, self.engine.time_ms)
+    # Implement a fast-track if the value exists
+    if self.values.contains(name)
+      var value = self.values[name]
+      if type(value) != "instance"
+        return value
+      end
+      
+      # Apply produce_value() if it' a ValueProvider
+      return self.resolve_value(value, name, self.engine.time_ms)
+    else
+      # Return default if available from class hierarchy
+      var encoded_constraints = self._get_param_def(name)
+      if encoded_constraints != nil
+        if self.constraint_mask(encoded_constraints, "default")
+          return self.constraint_find(encoded_constraints, "default")
+        else
+          return nil
+        end
+      else
+        raise "attribute_error", f"'{classname(self)}' object has no attribute '{name}'"
+      end
     end
-    
-    # Not a parameter, raise attribute error (consistent with setmember behavior)
-    raise "attribute_error", f"'{classname(self)}' object has no attribute '{name}'"
   end
   
   # Virtual member assignment - allows obj.param_name = value syntax
@@ -133,7 +138,7 @@ class ParameterizedObject
   # @param value: any - Value to set (can be static value or ValueProvider)
   def setmember(name, value)
     # Check if it's a parameter in the class hierarchy and set it with validation
-    if self._has_param(name)
+    if self.has_param(name)
       self._set_parameter_value(name, value)
     else
       # Not a parameter, this will cause an error in normal Berry behavior
@@ -175,13 +180,8 @@ class ParameterizedObject
     
     var value = self.values[name]
     
-    # If it's a ValueProvider, resolve it using produce_value
-    if animation.is_value_provider(value)
-      return value.produce_value(name, time_ms)
-    else
-      # It's a static value, return as-is
-      return value
-    end
+    # Apply produce_value() if it' a ValueProvider
+    return self.resolve_value(value, name, time_ms)
   end
   
   # Validate a parameter value against its constraints
@@ -210,7 +210,7 @@ class ParameterizedObject
       
       # Check if there's a default value (nil is acceptable if there's a default)
       if self.constraint_mask(encoded_constraints, "default")
-        return value  # nil is acceptable, will use default
+        return self.constraint_find(encoded_constraints, "default")  # nil is not allowed, use default
       end
       
       # nil is not allowed for this parameter
@@ -219,6 +219,15 @@ class ParameterizedObject
     
     # Type validation - default type is "int" if not specified
     var expected_type = self.constraint_find(encoded_constraints, "type", "int")
+    
+    # Normalize type synonyms to their base types
+    # 'time', 'percentage', 'color' are synonyms for 'int'
+    # 'palette' is synonym for 'bytes'
+    if expected_type == "time" || expected_type == "percentage" || expected_type == "color"
+      expected_type = "int"
+    elif expected_type == "palette"
+      expected_type = "bytes"
+    end
     
     # Get actual type for validation
     var actual_type = type(value)
@@ -287,7 +296,7 @@ class ParameterizedObject
   # @return bool - True if parameter was set, false if validation failed
   def set_param(name, value)
     # Check if parameter exists in class hierarchy
-    if !self._has_param(name)
+    if !self.has_param(name)
       return false
     end
     
@@ -326,9 +335,20 @@ class ParameterizedObject
   # @param param_name: string - Parameter name for specific produce_value() method lookup
   # @param time_ms: int - Current time in milliseconds
   # @return any - The resolved value (static or from provider)
-  def resolve_value(value, param_name, time_ms)
+  def resolve_value(value, name, time_ms)
     if animation.is_value_provider(value)             # this also captures 'nil'
-      return value.produce_value(param_name, time_ms)
+      var ret = value.produce_value(name, time_ms)
+
+      # If result is `nil` we check if the parameter is nillable, if so use default value
+      if (ret == nil)
+        var encoded_constraints = self._get_param_def(name)
+        if !self.constraint_mask(encoded_constraints, "nillable") &&
+            self.constraint_mask(encoded_constraints, "default")
+
+          ret = self.constraint_find(encoded_constraints, "default")
+        end
+      end
+      return ret
     else
       return value
     end
@@ -340,8 +360,8 @@ class ParameterizedObject
   # @param param_name: string - Name of the parameter
   # @param time_ms: int - Current time in milliseconds
   # @return any - The resolved value (static or from provider)
-  def get_param_value(param_name, time_ms)
-    return self._resolve_parameter_value(param_name, time_ms)
+  def get_param_value(param_name)
+    return self.member(param_name)
   end
   
   # Helper function to make sure both self.start_time and time_ms are valid
@@ -371,21 +391,47 @@ class ParameterizedObject
   # For value providers, start is typically not called because instances
   # can be embedded in closures. So value providers must consider the first
   # call to `produce_value()` as a start of their internal time reference.
-  # @param start_time: int - Optional start time in milliseconds
+  # 
+  # Subclasses should override this to implement their start behavior.
+  #
+  # @param time_ms: int - Start time in milliseconds (optional, uses engine time if nil)
   # @return self for method chaining
   def start(time_ms)
+    # Use engine time if not provided
     if time_ms == nil
       time_ms = self.engine.time_ms
     end
-    # if time_ms == nil
-    #   raise "value_error", "engine.time_ms should not be 'nil'"
-    # end
-    if self.start_time != nil   # reset time only if it was already started
+    
+    # Set is_running to true
+    self.is_running = true
+    
+    # Only reset start_time if it was already started (for value providers)
+    # Animations override this to always set start_time
+    if self.start_time != nil
       self.start_time = time_ms
     end
-    # Set is_running directly in values map to avoid infinite loop
-    self.values["is_running"] = true
+    
     return self
+  end
+  
+  # Stop the object
+  # Subclasses should override this to implement their stop behavior
+  #
+  # @return self for method chaining
+  def stop()
+    # Set is_running to false
+    self.is_running = false
+    return self
+  end
+  
+  # Update object state based on current time
+  # Subclasses must override this to implement their update logic
+  #
+  # @param time_ms: int - Current time in milliseconds
+  # @return bool - True if object is still running, false if completed
+  def update(time_ms)
+    # Default implementation just returns running state
+    return self.is_running
   end
   
   # Method called when a parameter is changed
@@ -394,16 +440,6 @@ class ParameterizedObject
   # @param name: string - Parameter name
   # @param value: any - New parameter value
   def on_param_changed(name, value)
-    if name == "is_running"
-      if value == true
-        # Start the object (but avoid infinite loop by not setting is_running again)
-        # Call start method to handle start_time
-        self.start(nil)
-      elif value == false
-        # Stop the object - just set the internal state
-        # (is_running is already set to false by the parameter system)
-      end
-    end
   end
   
   # Equality operator for object identity comparison
@@ -416,6 +452,20 @@ class ParameterizedObject
     return introspect.toptr(self) == introspect.toptr(other)
   end
   
+  # Default method to convert instance to boolean
+  # Having an explicit method prevents from calling member()
+  # Always return 'true' to mimick default test of instance existance
+  #
+  # @return bool - always True since the instance is not 'nil'
+  def tobool()
+    return true
+  end
+
+  # String representation
+  def tostring()
+    return f"{classname(self)}(running={self.is_running})"
+  end
+
   # Inequality operator for object identity comparison
   # This prevents the member() method from being called during != comparisons
   #
@@ -495,7 +545,7 @@ class ParameterizedObject
   #
   # Encoding constraints (see param_encoder.be):
   #   import param_encoder
-  #   var encoded = param_encoder.encode_constraints({"min": 0, "max": 255, "default": 128})
+  #   var encoded = param_encoder.animation.enc_params({"min": 0, "max": 255, "default": 128})
   #
   # Checking if constraint contains a field:
   #   if ParameterizedObject.constraint_mask(encoded, "min")
@@ -538,7 +588,7 @@ class ParameterizedObject
     "function"    # 0x06
   ]
   static def constraint_mask(encoded_bytes, name)
-    if size(encoded_bytes) > 0
+    if (encoded_bytes != nil) && size(encoded_bytes) > 0
       var index_mask = _class._MASK.find(name)
       if (index_mask != nil)
         return (encoded_bytes[0] & (1 << index_mask))

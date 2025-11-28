@@ -16,7 +16,7 @@ class TwinkleAnimation : animation.animation
   var random_seed      # Seed for random number generation
   
   # Parameter definitions with constraints
-  static var PARAMS = encode_constraints({
+  static var PARAMS = animation.enc_params({
     "color": {"default": 0xFFFFFFFF},
     "density": {"min": 0, "max": 255, "default": 128},
     "twinkle_speed": {"min": 1, "max": 5000, "default": 6},
@@ -46,7 +46,7 @@ class TwinkleAnimation : animation.animation
   
   # Initialize arrays based on current strip length
   def _initialize_arrays()
-    var strip_length = self.engine.get_strip_length()
+    var strip_length = self.engine.strip_length
     
     # Resize arrays
     self.twinkle_states.resize(strip_length)
@@ -135,7 +135,7 @@ class TwinkleAnimation : animation.animation
     var max_brightness = self.max_brightness
     var color = self.color
     
-    var strip_length = self.engine.get_strip_length()
+    var strip_length = self.engine.strip_length
     
     # Ensure arrays are properly sized
     if size(self.twinkle_states) != strip_length || self.current_colors.size() != strip_length * 4
@@ -206,7 +206,7 @@ class TwinkleAnimation : animation.animation
     # Auto-fix time_ms and start_time
     time_ms = self._fix_time_ms(time_ms)
     
-    var strip_length = self.engine.get_strip_length()
+    var strip_length = self.engine.strip_length
     
     # Ensure arrays are properly sized
     if size(self.twinkle_states) != strip_length || self.current_colors.size() != strip_length * 4

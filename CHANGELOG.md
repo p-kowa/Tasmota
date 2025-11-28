@@ -3,17 +3,56 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased] - Development
 
-## [15.1.0.1]
+## [15.1.0.3]
 ### Added
-- TLS enabled ECDSA by default for ESP8266 (#24009)
-- Berry add `cb.free_cb` for extension manager (#24014)
-- Berry `light.get()` direct access to values
+- Support for ESP32-P4 rev.3 (#24146)
+- Support for Analog Gauges (#24153)
+- Support for MakeSkyBlue Solar Charger Energy Monitor (#24151)
 
 ### Breaking Changed
 
 ### Changed
+- ESP32 Platform from 2025.11.30 to 2025.11.31, Framework (Arduino Core) from v3.1.5 to v3.1.6 and IDF from v5.3.4.251110 to v5.3.4.251110 (#24146)
+- Refactored DALI using TasmotaDali library v1.0.0 adding frame receive buffer
+
+### Fixed
+- ESP32-P4 Hosted MCU updated to v2.6.6 solving WiFi boot issues (#24146)
+- ESP32-Solo1 using pre-compiled Arduino libraries (#24146)
+- PCA9685 V2 driver PWMTO fading logic and overflow (#24159)
+
+### Removed
+
+## [15.1.0.2] 20251122
+### Added
+- WS2812 and Berry animation support for reverse-order LED strip (#24138)
+- DALI persistence for `DaliTarget` and `DaliChannels` if filesystem is present
+- DALI DT8 RGBWAF color support using Tasmota light control
+
+### Changed
+- ESP32 Platform from 2025.10.30 to 2025.11.30, Framework (Arduino Core) from v3.1.4 to v3.1.5 and IDF from v5.3.4.250826 to v5.3.4.251110 (#24118)
+- JPEGDEC library from v1.8.3 to v1.8.4 (#24120)
+
+### Fixed
+- DALI protocol errors
+
+## [15.1.0.1] 20251115
+### Added
+- TLS enabled ECDSA by default for ESP8266 (#24009)
+- Berry `cb.free_cb` for extension manager (#24014)
+- Berry `light.get()` direct access to values (#24033)
+- HostedMCU file update using command `HostedLoad <version>|<filename>`
+- Berry `gc_heap` and `gc_time` to `tasmota.memory()` (#24054)
+- Scripter array transfer via UFS (#24060)
+- ESP8266 GPIOViewer memory map if enabled with `#define GV_USE_ESPINFO`
+- Berry `tcp.write()` add `offset` and `len` (#24076)
+- NeoPool command `NPReadLSB`, `NPReadMSB`, `NPWriteLSB`, `NWriteMSB` for directly read/write LSB/MSB of 16-bit register (#24083)
+- Commands `DaliSend` and `DaliQuery` allow extended commands with prefix for DeviceType defaulting to DT6
+
+### Changed
 - Refactored library UDisplay (#24007)
 - LVGL library from v9.3.0 to v9.4.0 (#24028)
+- Increased filesystem file name size from 48 to 50 characters
+- GPIOViewer from v1.6.3 to v1.7.0
 
 ### Fixed
 - TLS fix ECDSA and add `SetOption165 1` to enable ECDSA in addition to RSA (#24000)
@@ -21,9 +60,9 @@ All notable changes to this project will be documented in this file.
 - HASPmota exception in `cpicker` (colorwheel) (#24010)
 - Extension Manager Light Theme support and Extensions input field control
 - InfluxDb receives IPAddress as a value regression from v15.0.1.3 (#24031)
-
-### Removed
-
+- Scripter UDP and switch case (#24060)
+- TuyaMCU v1 soft lock when WIFI_SELECT / WIFI_RESET is initiated (#24063)
+- HASPmota `scale` and `angle` for images (#24089)
 
 ## [Released]
 
