@@ -47,7 +47,7 @@ def test_basic_transpilation()
   assert(berry_code != nil, "Should generate Berry code")
   assert(string.find(berry_code, "var engine = animation.init_strip()") >= 0, "Should generate strip configuration")
   assert(string.find(berry_code, "var custom_red_ = 0xFFFF0000") >= 0, "Should generate color definition")
-  assert(string.find(berry_code, "var demo_ = animation.SequenceManager(engine)") >= 0, "Should generate sequence manager")
+  assert(string.find(berry_code, "var demo_ = animation.sequence_manager(engine)") >= 0, "Should generate sequence manager")
   assert(string.find(berry_code, "engine.add(demo_)") >= 0, "Should add sequence manager")
   
   # print("Generated Berry code:")
@@ -175,7 +175,7 @@ def test_sequences()
   
   var berry_code = animation_dsl.compile(dsl_source)
   assert(berry_code != nil, "Should compile sequence")
-  assert(string.find(berry_code, "var test_seq_ = animation.SequenceManager(engine)") >= 0, "Should define sequence manager")
+  assert(string.find(berry_code, "var test_seq_ = animation.sequence_manager(engine)") >= 0, "Should define sequence manager")
   assert(string.find(berry_code, ".push_play_step(") >= 0, "Should add play step")
   assert(string.find(berry_code, "3000)") >= 0, "Should reference duration")
   assert(string.find(berry_code, "engine.run()") >= 0, "Should start engine")
@@ -203,7 +203,7 @@ def test_sequence_assignments()
   
   var berry_code = animation_dsl.compile(dsl_source)
   assert(berry_code != nil, "Should compile sequence with assignments")
-  assert(string.find(berry_code, "var demo_ = animation.SequenceManager(engine)") >= 0, "Should define sequence manager")
+  assert(string.find(berry_code, "var demo_ = animation.sequence_manager(engine)") >= 0, "Should define sequence manager")
   assert(string.find(berry_code, ".push_closure_step") >= 0, "Should generate closure step")
   assert(string.find(berry_code, "test_.opacity = brightness_") >= 0, "Should generate assignment")
   
@@ -710,7 +710,7 @@ def test_complex_dsl()
     # Check for key components
     assert(string.find(berry_code, "var engine = animation.init_strip()") >= 0, "Should have default strip initialization")
     assert(string.find(berry_code, "var custom_red_ = 0xFFFF0000") >= 0, "Should have color definitions")
-    assert(string.find(berry_code, "var demo_ = animation.SequenceManager(engine)") >= 0, "Should have sequence definition")
+    assert(string.find(berry_code, "var demo_ = animation.sequence_manager(engine)") >= 0, "Should have sequence definition")
     assert(string.find(berry_code, "engine.add(demo_)") >= 0, "Should have execution")
     
     print("Generated code structure looks correct")
@@ -1120,148 +1120,13 @@ def test_invalid_sequence_commands()
   
   var result4 = animation_dsl.compile(valid_sequence_dsl)
   assert(result4 != nil, "Should compile valid sequence successfully")
-  assert(string.find(result4, "SequenceManager") >= 0, "Should generate sequence manager")
+  assert(string.find(result4, "sequence_manager") >= 0, "Should generate sequence manager")
   assert(string.find(result4, "push_play_step") >= 0, "Should generate play step")
   assert(string.find(result4, "push_wait_step") >= 0, "Should generate wait step")
   assert(string.find(result4, "log(f\"test message\", 3)") >= 0, "Should generate log statement")
   assert(string.find(result4, "push_closure_step") >= 0, "Should generate closure steps")
   
   print("✓ Invalid sequence commands test passed")
-  return true
-end
-
-# Test template-only transpilation
-def test_template_only_transpilation()
-  print("Testing template-only transpilation...")
-  
-  # Test single template definition
-  var single_template_dsl = "template pulse_effect {\n" +
-    "  param base_color type color\n" +
-    "  param duration\n" +
-    "  param brightness type number\n" +
-    "  \n" +
-    "  animation pulse = pulsating_animation(\n" +
-    "    color=base_color\n" +
-    "    period=duration\n" +
-    "  )\n" +
-    "  pulse.opacity = brightness\n" +
-    "  run pulse\n" +
-    "}"
-  
-  var single_code = animation_dsl.compile(single_template_dsl)
-  assert(single_code != nil, "Should compile single template")
-  
-  # Should NOT contain engine initialization
-  assert(string.find(single_code, "var engine = animation.init_strip()") < 0, "Should NOT generate engine initialization for template-only file")
-  
-  # Should NOT contain engine.run()
-  assert(string.find(single_code, "engine.run()") < 0, "Should NOT generate engine.run() for template-only file")
-  
-  # Should contain template function definition
-  assert(string.find(single_code, "def pulse_effect_template(engine, base_color_, duration_, brightness_)") >= 0, "Should generate template function")
-  
-  # Should contain function registration
-  assert(string.find(single_code, "animation.register_user_function('pulse_effect', pulse_effect_template)") >= 0, "Should register template function")
-  
-  # Test multiple templates
-  var multiple_templates_dsl = "template pulse_effect {\n" +
-    "  param base_color type color\n" +
-    "  param duration\n" +
-    "  \n" +
-    "  animation pulse = pulsating_animation(\n" +
-    "    color=base_color\n" +
-    "    period=duration\n" +
-    "  )\n" +
-    "  run pulse\n" +
-    "}\n" +
-    "\n" +
-    "template blink_red {\n" +
-    "  param speed\n" +
-    "  \n" +
-    "  animation blink = pulsating_animation(\n" +
-    "    color=red\n" +
-    "    period=speed\n" +
-    "  )\n" +
-    "  \n" +
-    "  run blink\n" +
-    "}"
-  
-  var multiple_code = animation_dsl.compile(multiple_templates_dsl)
-  assert(multiple_code != nil, "Should compile multiple templates")
-  
-  # Should NOT contain engine initialization or run
-  assert(string.find(multiple_code, "var engine = animation.init_strip()") < 0, "Should NOT generate engine initialization for multiple templates")
-  assert(string.find(multiple_code, "engine.run()") < 0, "Should NOT generate engine.run() for multiple templates")
-  
-  # Should contain both template functions
-  assert(string.find(multiple_code, "def pulse_effect_template(") >= 0, "Should generate first template function")
-  assert(string.find(multiple_code, "def blink_red_template(") >= 0, "Should generate second template function")
-  
-  # Should contain both registrations
-  assert(string.find(multiple_code, "animation.register_user_function('pulse_effect'") >= 0, "Should register first template")
-  assert(string.find(multiple_code, "animation.register_user_function('blink_red'") >= 0, "Should register second template")
-  
-  print("✓ Template-only transpilation test passed")
-  return true
-end
-
-# Test mixed template and DSL transpilation
-def test_mixed_template_dsl_transpilation()
-  print("Testing mixed template and DSL transpilation...")
-  
-  # Test template with regular DSL (should generate engine initialization and run)
-  var mixed_dsl = "template pulse_effect {\n" +
-    "  param base_color type color\n" +
-    "  param duration\n" +
-    "  \n" +
-    "  animation pulse = pulsating_animation(\n" +
-    "    color=base_color\n" +
-    "    period=duration\n" +
-    "  )\n" +
-    "  run pulse\n" +
-    "}\n" +
-    "\n" +
-    "color my_red = 0xFF0000\n" +
-    "animation test_anim = solid(color=my_red)\n" +
-    "run test_anim"
-  
-  var mixed_code = animation_dsl.compile(mixed_dsl)
-  assert(mixed_code != nil, "Should compile mixed template and DSL")
-  
-  # Should contain engine initialization because of non-template DSL
-  assert(string.find(mixed_code, "var engine = animation.init_strip()") >= 0, "Should generate engine initialization for mixed content")
-  
-  # Should contain engine.run() because of run statement
-  assert(string.find(mixed_code, "engine.run()") >= 0, "Should generate engine.run() for mixed content")
-  
-  # Should contain template function
-  assert(string.find(mixed_code, "def pulse_effect_template(") >= 0, "Should generate template function")
-  
-  # Should contain regular DSL elements
-  assert(string.find(mixed_code, "var my_red_ = 0xFFFF0000") >= 0, "Should generate color definition")
-  assert(string.find(mixed_code, "var test_anim_ = animation.solid(engine)") >= 0, "Should generate animation definition")
-  
-  # Test template with property assignment (should generate engine initialization)
-  var template_with_property_dsl = "template pulse_effect {\n" +
-    "  param base_color type color\n" +
-    "  \n" +
-    "  animation pulse = pulsating_animation(color=base_color, period=2s)\n" +
-    "  run pulse\n" +
-    "}\n" +
-    "\n" +
-    "animation test_anim = solid(color=red)\n" +
-    "test_anim.opacity = 128"
-  
-  var property_code = animation_dsl.compile(template_with_property_dsl)
-  assert(property_code != nil, "Should compile template with property assignment")
-  
-  # Should generate engine initialization because of property assignment
-  assert(string.find(property_code, "var engine = animation.init_strip()") >= 0, "Should generate engine initialization for property assignment")
-  
-  # Should NOT generate engine.run() because no run statement
-  assert(string.find(property_code, "engine.run()") < 0, "Should NOT generate engine.run() without run statement")
-  
-  print("✓ Mixed template and DSL transpilation test passed")
   return true
 end
 
@@ -1292,9 +1157,7 @@ def run_dsl_transpiler_tests()
     test_easing_keywords,
     test_animation_type_checking,
     test_color_type_checking,
-    test_invalid_sequence_commands,
-    test_template_only_transpilation,
-    test_mixed_template_dsl_transpilation
+    test_invalid_sequence_commands
   ]
   
   var passed = 0

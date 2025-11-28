@@ -517,6 +517,7 @@
 //  #define USE_WEBGETCONFIG                       // Enable restoring config from external webserver (+0k6)
 //  #define USE_WEBRUN                             // Enable executing a tasmota command file from external web server (+0.4 code)
 //  #define USE_GPIO_VIEWER                        // Enable GPIO Viewer to see realtime GPIO states (+6k code)
+    #define GV_USE_ESPINFO                       // Add ESP8266 info (+2k1 code)
 //    #define GV_SAMPLING_INTERVAL  100            // [GvSampling] milliseconds - Use Tasmota Scheduler (100) or Ticker (20..99,101..1000)
   #define USE_EMULATION_HUE                      // Enable Hue Bridge emulation for Alexa (+14k code, +2k mem common)
   #define USE_EMULATION_WEMO                     // Enable Belkin WeMo emulation for Alexa (+6k code, +2k mem common)
@@ -938,7 +939,10 @@
 //  #define GM861_DECODE_AIM                       // Decode AIM-id (+0k3 code)
 //  #define GM861_HEARTBEAT                        // Enable heartbeat (+0k2 code)
 //#define USE_WOOLIIS                              // Add support for Wooliis Hall Effect Coulometer or Battery capacity monitor (+1k6 code)
-//#define USE_DALI                                 // Add support for DALI gateway (+5k code)
+//#define USE_DALI                                 // Add support for DALI gateway (+7k6 code)
+//  #define DALI_POWER_OFF_NO_FADE                 // Power off immediatly without fading (+0k1 code)
+//  #define DALI_LIGHT_COLOR_SUPPORT               // Add support for DALI DT8 RGBWAF color control (+0k7 code)
+//    #define DALI_LIGHT_NO_READ_AFTER_WRITE       // Use no DTR read-after-write for smooth color transitions saving 55ms / channel (-0k1 code)
 
 // -- Power monitoring sensors --------------------
 #define USE_ENERGY_SENSOR                        // Add support for Energy Monitors (+14k code)
@@ -982,6 +986,8 @@
 //#define USE_WE517                                // Add support for Orno WE517-Modbus energy monitor (+1k code)
 //#define USE_MODBUS_ENERGY                        // Add support for generic modbus energy monitor using a user file in rule space (+5k)
 //#define USE_V9240                              // Add support for Vango Technologies V924x ultralow power, single-phase, power measurement (+12k)
+//#define USE_MAKE_SKY_BLUE                        // Add support for MakeSkyBlue - Solar Charge Controller interface
+  #define MAKE_SKY_BLUE_OPTION 0x7                 // MakeSkyBlue option: 0=minimal, 0x1=with serial debug, 0x2=with EnergyConfig On/Off, 0x4=with EnergyConfig register R/W
 
 // -- Low level interface devices -----------------
 #define USE_DHT                                  // Add support for DHT11, AM2301 (DHT21, DHT22, AM2302, AM2321) and SI7021 Temperature and Humidity sensor (1k6 code)
@@ -1124,6 +1130,7 @@
 
 //#define USE_HRE                                  // Add support for Badger HR-E Water Meter (+1k4 code)
 //#define USE_A4988_STEPPER                        // Add support for A4988/DRV8825 stepper-motor-driver-circuit (+10k5 code)
+//#define USE_VID6608                              // Add support for VID6608 Automotive analog gauge driver (+0k7 code)
 
 //#define USE_PROMETHEUS                           // Add support for https://prometheus.io/ metrics exporting over HTTP /metrics endpoint
 
