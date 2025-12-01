@@ -51,6 +51,7 @@ typedef struct
   float temperature;     // Soil temperature in °C (float for precision)
   uint16_t humidity;     // Soil humidity in % (0-100)
   uint16_t conductivity; // Soil conductivity in µS/cm
+  uint8_t sensorFound;  // Flag indicating if sensor data was successfully read
 } tXsnSensorData;
 tXsnSensorData XsnSensorData[MAX_SENSORS];
 
@@ -187,18 +188,19 @@ void SensorDriverInit()
 
 /*
   testSensorConnection - Validates that all configured sensors respond to Modbus commands.
-  Tests each sensor address and removes non-responsive addresses from the configuration.
+  Logs any non-responsive sensors but does NOT remove them from configuration.
+  User can manually delete non-responsive sensors using ModbusSoil_DeleteSensor command.
   Called once during driver initialization (FUNC_INIT).
   Returns: true if at least one valid sensor was found, false if all sensors are unreachable.
 */
 bool testSensorConnection()
 {
   bool sensorFound = false;
-  const uint8_t testQuantity = 1;  // We're testing with 1 register
+  const uint8_t testQuantity = 1;
   
   AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Testing %u configured sensor(s)..."), XsnSensorSettings.numSensors);
   
-  for (size_t i = 0; i < XsnSensorSettings.numSensors;)
+  for (uint8_t i = 0; i < XsnSensorSettings.numSensors; i++)
   {
     uint8_t sensorAddress = XsnSensorSettings.sensorAddresses[i];
     
@@ -213,7 +215,7 @@ bool testSensorConnection()
     request[6] = crc & 0xFF;
     request[7] = (crc >> 8) & 0xFF;
     
-    AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Testing sensor %u (address: %u)..."), i + 1, sensorAddress);
+    AddLog(LOG_LEVEL_DEBUG, PSTR("XSNS118: Testing sensor %u (address: %u)..."), i + 1, sensorAddress);
     AddLogBuffer(LOG_LEVEL_DEBUG, request, 8);
     
     // Clear serial buffer before sending
@@ -244,58 +246,51 @@ bool testSensorConnection()
     AddLogBuffer(LOG_LEVEL_DEBUG, response, bytesRead);
     
     // Validate response: [Address][Function 0x03][ByteCount][Data1][Data2][CRC_L][CRC_H]
-    // ByteCount should be testQuantity * 2 (1 register = 2 bytes of data)
     uint8_t expectedByteCount = testQuantity * 2;
     if (bytesRead >= 7 && response[0] == sensorAddress && response[1] == 0x03 && response[2] == expectedByteCount)
     {
-      // Also validate CRC
+      // Validate CRC
       uint16_t calcCRC = ModbusCRC16(response, bytesRead - 2);
       uint16_t recvCRC = (response[bytesRead-1] << 8) | response[bytesRead-2];
       
       if (calcCRC == recvCRC)
       {
         AddLog(LOG_LEVEL_INFO, PSTR("✓ Sensor %u (address: %u) responded successfully!"), i + 1, sensorAddress);
-        sensorFound = true;
-        i++;  // Only increment if sensor is valid
+        XsnSensorData[i].sensorFound = 1;
       }
       else
       {
-        AddLog(LOG_LEVEL_DEBUG, PSTR("✗ Sensor %u (address: %u) - CRC validation failed. Removing from configuration."), i + 1, sensorAddress);
-        // Remove non-responsive address and shift remaining addresses down
-        for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
-        {
-          XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
-        }
-        XsnSensorSettings.numSensors--;
+        AddLog(LOG_LEVEL_INFO, PSTR("⚠ Sensor %u (address: %u) - CRC validation failed. Use 'ModbusSoil_DeleteSensor %u' to remove."), i + 1, sensorAddress, sensorAddress);
+        XsnSensorData[i].sensorFound = 0;
       }
     }
     else
     {
-      AddLog(LOG_LEVEL_DEBUG, PSTR("✗ Sensor %u (address: %u) did not respond. Removing from configuration."), i + 1, sensorAddress);
-      
-      // Remove non-responsive address and shift remaining addresses down
-      for (uint8_t j = i; j < XsnSensorSettings.numSensors - 1; j++)
-      {
-        XsnSensorSettings.sensorAddresses[j] = XsnSensorSettings.sensorAddresses[j + 1];
-      }
-      XsnSensorSettings.numSensors--;
+      AddLog(LOG_LEVEL_INFO, PSTR("⚠ Sensor %u (address: %u) did not respond. Use 'ModbusSoil_DeleteSensor %u' to remove."), i + 1, sensorAddress, sensorAddress);
+      XsnSensorData[i].sensorFound = 0;
     }
   }
   
-  Xsns150SettingsSave();  // Save updated sensor list
-  
+  for (uint8_t i = 0; i < XsnSensorSettings.numSensors; i++)
+  {
+    if (XsnSensorData[i].sensorFound)
+    {
+      sensorFound = true;
+      break;
+    }
+  }
+
   if (sensorFound)
   {
     AddLog(LOG_LEVEL_INFO, PSTR("XSNS118: Sensor connection test completed. %u sensor(s) available."), XsnSensorSettings.numSensors);
   }
   else
   {
-    AddLog(LOG_LEVEL_ERROR, PSTR("XSNS118: No sensors found during connection test!"));
+    AddLog(LOG_LEVEL_ERROR, PSTR("XSNS118: No sensors responded during connection test!"));
   }
   
   return sensorFound;
 }
-
 /*
   readSerial - Generic serial I/O for Modbus communication.
   Sends a request and reads the response with flexible sizing.
@@ -389,12 +384,17 @@ bool ReadSensorRegisters(uint8_t sensorAddress, uint8_t quantity, uint16_t* regi
 
 /*
   SoilMoistureRead - Poll the next sensor in round-robin sequence.
-  Reads configured registers and updates sensor data.
+  Only reads sensors that passed the connection test.
+  Skips non-responsive sensors but still cycles through them.
   Called from FUNC_EVERY_SECOND callback (~1Hz).
 */
 void SoilMoistureRead()
 {
-  if (sensorConnected)
+  if (!sensorConnected)
+    return;
+  
+  // Only attempt to read if this sensor responded during init test
+  if (XsnSensorData[currentSensor].sensorFound)
   {
     uint16_t registers[MAX_REGISTER_NUMBER];
     
@@ -422,7 +422,9 @@ void SoilMoistureRead()
       AddLog(LOG_LEVEL_DEBUG, PSTR("Sensor %u: read failed."), currentSensor);
     }
   }
+  // else: sensor not found, skip it but still advance to next
   
+  // Always move to next sensor for next second
   currentSensor++;
   if (currentSensor >= XsnSensorSettings.numSensors)
     currentSensor = 0;
