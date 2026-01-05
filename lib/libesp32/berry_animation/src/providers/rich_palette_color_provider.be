@@ -1,4 +1,4 @@
-# RichPaletteColorProvider for Berry Animation Framework
+# rich_palette_color for Berry Animation Framework
 #
 # This color provider generates colors from a palette with smooth transitions.
 # Reuses optimizations from Animate_palette class for maximum efficiency.
@@ -30,10 +30,9 @@
 
 import "./core/param_encoder" as encode_constraints
 
-#@ solidify:RichPaletteColorProvider,weak
-class RichPaletteColorProvider : animation.color_provider
+class rich_palette_color : animation.color_provider
   # Non-parameter instance variables only
-  var _slots_arr        # Constructed array of timestamp slots, based on cycle_period
+  var _slots_arr        # Constructed array of timestamp slots, based on period
   var _value_arr        # Constructed array of value slots (always 0-255 range)
   var _slots            # Number of slots in the palette
   var _current_color    # Current interpolated color (calculated during update)
@@ -42,13 +41,13 @@ class RichPaletteColorProvider : animation.color_provider
   
   # Parameter definitions
   static var PARAMS = animation.enc_params({
-    "palette": {"type": "bytes", "default": nil},  # Palette bytes or predefined palette constant
-    "cycle_period": {"min": 0, "default": 5000},  # 5 seconds default, 0 = value-based only
-    "transition_type": {"enum": [animation.LINEAR, animation.SINE], "default": animation.LINEAR}
-    # brightness parameter inherited from ColorProvider base class
+    "colors": {"type": "bytes", "default": nil},  # Palette bytes or predefined palette constant
+    "period": {"min": 0, "default": 5000},  # 5 seconds default, 0 = value-based only
+    "transition_type": {"enum": [1 #-animation.LINEAR-#, 5 #-animation.SINE-#], "default": 1 #-animation.LINEAR-#}
+    # brightness parameter inherited from color_provider base class
   })
   
-  # Initialize a new RichPaletteColorProvider
+  # Initialize a new rich_palette_color
   #
   # @param engine: AnimationEngine - Reference to the animation engine (required)
   def init(engine)
@@ -62,6 +61,9 @@ class RichPaletteColorProvider : animation.color_provider
     import global
     self._light_state = global.light_state(global.light_state.RGB)
 
+    # Set default palette to animation.PALETTE_RAINBOW
+    self.colors = animation.PALETTE_RAINBOW
+
     # We need to register this value provider to receive 'update()'
     engine.add(self)
   end
@@ -72,7 +74,7 @@ class RichPaletteColorProvider : animation.color_provider
   # @param value: any - New value of the parameter
   def on_param_changed(name, value)
     super(self).on_param_changed(name, value)
-    if name == "cycle_period" || name == "palette"
+    if name == "period" || name == "colors"
       if (self._slots_arr != nil) || (self._value_arr != nil)
         # only if they were already computed
         self._recompute_palette()
@@ -80,7 +82,7 @@ class RichPaletteColorProvider : animation.color_provider
     end
     # Mark LUT as dirty when palette or transition_type changes
     # Note: brightness changes do NOT invalidate LUT since brightness is applied after lookup
-    if name == "palette" || name == "transition_type"
+    if name == "colors" || name == "transition_type"
       self._lut_dirty = true
     end
     # Brightness changes do NOT invalidate LUT - brightness is applied after lookup
@@ -101,7 +103,7 @@ class RichPaletteColorProvider : animation.color_provider
   
   # Get palette bytes from parameter with default fallback
   def _get_palette_bytes()
-    var palette_bytes = self.palette
+    var palette_bytes = self.colors
     return (palette_bytes != nil) ? palette_bytes : self._DEFAULT_PALETTE
   end
   static _DEFAULT_PALETTE = bytes(
@@ -117,14 +119,14 @@ class RichPaletteColorProvider : animation.color_provider
   
   # Recompute palette slots and metadata
   def _recompute_palette()
-    # Compute slots_arr based on 'cycle_period'
-    var cycle_period = self.cycle_period
+    # Compute slots_arr based on 'period'
+    var period = self.period
     var palette_bytes = self._get_palette_bytes()
     self._slots = size(palette_bytes) / 4
 
     # Recompute palette with new cycle period (only if > 0 for time-based cycling)
-    if cycle_period > 0 && palette_bytes != nil
-      self._slots_arr = self._parse_palette(0, cycle_period - 1)
+    if period > 0 && palette_bytes != nil
+      self._slots_arr = self._parse_palette(0, period - 1)
     else
       self._slots_arr = nil
     end
@@ -209,7 +211,7 @@ class RichPaletteColorProvider : animation.color_provider
   def _interpolate(value, from_min, from_max, to_min, to_max)
     var transition_type = self.transition_type
     
-    if transition_type == animation.SINE
+    if transition_type == 5 #-animation.SINE-#
       # Cosine interpolation for smooth transitions
       # Map value to 0..255 range first
       var t = tasmota.scale_uint(value, from_min, from_max, 0, 255)
@@ -239,7 +241,6 @@ class RichPaletteColorProvider : animation.color_provider
   # Subclasses must override this to implement their update logic
   #
   # @param time_ms: int - Current time in milliseconds
-  # @return bool - True if object is still running, false if completed
   def update(time_ms)
     # Rebuild LUT if dirty
     if self._lut_dirty || self._color_lut == nil
@@ -247,9 +248,7 @@ class RichPaletteColorProvider : animation.color_provider
     end
 
     # Cache the brightness to an instance variable for this tick
-    self._brightness = self.brightness
-    
-    return self.is_running
+    self._brightness = self.member("brightness")
   end
 
   # Produce a color value for any parameter name (optimized version from Animate_palette)
@@ -271,11 +270,11 @@ class RichPaletteColorProvider : animation.color_provider
     end
     
     # Get parameter values using virtual member access
-    var cycle_period = self.cycle_period
+    var period = self.period
     var brightness = self.brightness
     
-    # If cycle_period is 0, return static color (first color in palette)
-    if cycle_period == 0
+    # If period is 0, return static color (first color in palette)
+    if period == 0
       var bgrt0 = palette_bytes.get(0, 4)
       var r = (bgrt0 >>  8) & 0xFF
       var g = (bgrt0 >> 16) & 0xFF
@@ -295,7 +294,7 @@ class RichPaletteColorProvider : animation.color_provider
     
     # Calculate position in cycle using start_time
     var elapsed = time_ms - self.start_time
-    var past = elapsed % cycle_period
+    var past = elapsed % period
     
     # Find slot (exact algorithm from Animate_palette)
     var slots = self._slots
@@ -516,40 +515,6 @@ class RichPaletteColorProvider : animation.color_provider
     ret += ");"
     return ret
   end
-  
-  # String representation
-  def tostring()
-    try
-      return f"RichPaletteColorProvider(slots={self._slots}, cycle_period={self.cycle_period})"
-    except ..
-      return "RichPaletteColorProvider(uninitialized)"
-    end
-  end
 end
 
-# Factory function for rainbow palette (reusing format from Animate_palette)
-#
-# @param engine: AnimationEngine - Animation engine reference
-# @return RichPaletteColorProvider - A new rich palette color provider instance with rainbow palette
-def rich_palette_rainbow(engine)
-  # Standard rainbow palette (exact format from Animate_palette examples)
-  var palette_bytes = bytes(
-    "00FF0000"    # Red (value 0)
-    "24FFA500"    # Orange (value 36)
-    "49FFFF00"    # Yellow (value 73)
-    "6E00FF00"    # Green (value 110)
-    "920000FF"    # Blue (value 146)
-    "B74B0082"    # Indigo (value 183)
-    "DBEE82EE"    # Violet (value 219)
-    "FFFF0000"    # Red (value 255)
-  )
-  
-  # Create provider with rainbow palette and default parameters
-  var provider = animation.rich_palette(engine)
-  provider.palette = palette_bytes
-  
-  return provider
-end
-
-return {'rich_palette': RichPaletteColorProvider,
-        'rich_palette_rainbow': rich_palette_rainbow}
+return {'rich_palette_color': rich_palette_color}

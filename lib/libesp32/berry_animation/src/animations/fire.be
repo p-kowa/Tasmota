@@ -5,8 +5,7 @@
 
 import "./core/param_encoder" as encode_constraints
 
-#@ solidify:FireAnimation,weak
-class FireAnimation : animation.animation
+class fire : animation.animation
   # Non-parameter instance variables only
   var heat_map         # bytes() buffer storing heat values for each pixel (0-255)
   var current_colors   # bytes() buffer storing ARGB colors (4 bytes per pixel)
@@ -27,6 +26,7 @@ class FireAnimation : animation.animation
   #
   # @param engine: AnimationEngine - The animation engine (required)
   def init(engine)
+    log("ANI: `fire` animation is still in alpha and will be refactored")
     # Call parent constructor with engine
     super(self).init(engine)
     
@@ -77,16 +77,7 @@ class FireAnimation : animation.animation
   # Update animation state based on current time
   #
   # @param time_ms: int - Current time in milliseconds
-  # @return bool - True if animation is still running, false if completed
   def update(time_ms)
-    # Call parent update method first
-    if !super(self).update(time_ms)
-      return false
-    end
-    
-    # Auto-fix time_ms and start_time
-    time_ms = self._fix_time_ms(time_ms)
-    
     # Check if it's time to update the fire simulation
     # Update frequency is based on flicker_speed (Hz)
     var flicker_speed = self.flicker_speed  # Cache parameter value
@@ -95,8 +86,6 @@ class FireAnimation : animation.animation
       self.last_update = time_ms
       self._update_fire_simulation(time_ms)
     end
-    
-    return true
   end
   
   # Update the fire simulation
@@ -193,9 +182,9 @@ class FireAnimation : animation.animation
         # If color is nil, create default fire palette
         if resolved_color == nil
           # Create default fire palette on demand
-          var fire_provider = animation.rich_palette(self.engine)
-          fire_provider.palette = animation.PALETTE_FIRE
-          fire_provider.cycle_period = 0  # Use value-based color mapping, not time-based
+          var fire_provider = animation.rich_palette_color(self.engine)
+          fire_provider.colors = animation.PALETTE_FIRE
+          fire_provider.period = 0  # Use value-based color mapping, not time-based
           fire_provider.transition_type = 1  # Use sine transition (smooth)
           fire_provider.brightness = 255
           resolved_color = fire_provider
@@ -230,19 +219,11 @@ class FireAnimation : animation.animation
   
   # Render the fire to the provided frame buffer
   #
-  # @param frame: FrameBuffer - The frame buffer to render to
-  # @param time_ms: int - Optional current time in milliseconds (defaults to engine time)
+  # @param frame: frame_buffer - The frame buffer to render to
+  # @param time_ms: int - Current time in milliseconds
+  # @param strip_length: int - Length of the LED strip in pixels
   # @return bool - True if frame was modified, false otherwise
-  def render(frame, time_ms)
-    if !self.is_running || frame == nil
-      return false
-    end
-    
-    # Auto-fix time_ms and start_time
-    time_ms = self._fix_time_ms(time_ms)
-
-    var strip_length = self.engine.strip_length
-    
+  def render(frame, time_ms, strip_length)
     # Render each pixel with its current color
     var i = 0
     while i < strip_length
@@ -269,11 +250,6 @@ class FireAnimation : animation.animation
     
     return self
   end
-  
-  # String representation of the animation
-  def tostring()
-    return f"FireAnimation(intensity={self.intensity}, flicker_speed={self.flicker_speed}, priority={self.priority}, running={self.is_running})"
-  end
 end
 
-return {'fire_animation': FireAnimation}
+return {'fire': fire}
