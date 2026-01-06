@@ -405,9 +405,9 @@ void SoilMoistureRead()
       // Register 0 = Humidity * 10
       XsnSensorData[currentSensor].humidity = (registers[0] > 0) ? registers[0] / 10 : 0;
       
-      // Register 1 = Temperature * 10
+      // Register 1 = Temperature * 10 (signed 16-bit to support negative temperatures)
       if (XsnSensorSettings.registerNumber >= 2)
-        XsnSensorData[currentSensor].temperature = (registers[1] > 0) ? registers[1] / 10.0 : 0;
+        XsnSensorData[currentSensor].temperature = (int16_t)registers[1] / 10.0;
       
       // Register 2 = Conductivity (if requested)
       if (XsnSensorSettings.registerNumber >= 3)
