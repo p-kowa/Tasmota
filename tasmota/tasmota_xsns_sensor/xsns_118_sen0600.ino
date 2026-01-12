@@ -662,9 +662,9 @@ void SoilMoistureShow(bool json)
   {
     if (json)
     {
-      ResponseAppend_P(PSTR(",\"%s%u_Humidity\":%d,\"%s%u_Temperature\":%.1f"),
+      ResponseAppend_P(PSTR(",\"%s%u\":{\"Humidity\":%d,\"Temperature\":%.1f}"),
                  SENSORNAME, i + 1, (int)XsnSensorData[i].humidity,
-                 SENSORNAME, i + 1, XsnSensorData[i].temperature);
+                 XsnSensorData[i].temperature);
     }
 #ifdef USE_WEBSERVER
     else
