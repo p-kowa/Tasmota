@@ -644,6 +644,7 @@ void CmndModbusSoilDeleteSensor(void)
     }
   }
   // Ensure at least one default sensor address is set
+  
   EnsureDefaultSensorAddress();
   if (!addressFound)
   {
