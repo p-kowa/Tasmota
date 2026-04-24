@@ -55,6 +55,7 @@
 #include <JsonParser.h>
 #include <JsonGenerator.h>
 #ifdef ESP8266
+#include "sntp.h"                           // To disable sntp using UDP for NTP updates
 #ifdef USE_ARDUINO_OTA
 #include <ArduinoOTA.h>                     // Arduino OTA
 #ifndef USE_DISCOVERY
@@ -268,7 +269,9 @@ struct TasmotaGlobal_t {
   uint32_t zc_code_offset;                  // Zero cross moment offset due to executing power code (microseconds)
   uint32_t zc_interval;                     // Zero cross interval around 8333 (60Hz) or 10000 (50Hz) (microseconds)
   GpioOptionABits gpio_optiona;             // GPIO Option_A flags
+#ifdef ESP32
   void *log_buffer_mutex;                   // Control access to log buffer
+#endif
 
   power_t power;                            // Current copy of Settings->power
   power_t power_latching;                   // Current state of single pin latching power
@@ -313,7 +316,7 @@ struct TasmotaGlobal_t {
   bool stop_flash_rotate;                   // Allow flash configuration rotation
   bool blinkstate;                          // LED state
   bool pwm_present;                         // Any PWM channel configured with SetOption15 0
-  bool i2c_enabled[2];                      // I2C configured for all possible buses (1 or 2)
+  bool i2c_enabled[2];                      // I2C configured for all possible buses (1 or 2) - MAX_I2C
 #ifdef ESP32
   bool camera_initialized;                  // For esp32-webcam, to be used in discovery
   bool ota_factory;                         // Select safeboot binary
