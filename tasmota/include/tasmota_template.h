@@ -522,11 +522,6 @@ const char kSensorNamesFixed[] PROGMEM =
   D_SENSOR_USER;
 
 // Max number of GPIOs
-#define MAX_I2C                  1  // Display no index if one bus
-#ifdef USE_I2C_BUS2
-#undef MAX_I2C
-#define MAX_I2C                  2
-#endif
 #define MAX_MAX31855S            6
 #define MAX_MAX31865S            6
 #define MAX_MCP23XXX             6
@@ -1305,7 +1300,11 @@ const uint16_t kGpioNiceList[] PROGMEM = {
 #endif  // USE_WEBCAM
 #ifdef USE_ETHERNET
   AGPIO(GPIO_ETH_PHY_POWER),
+#if CONFIG_SOC_SPI_PERIPH_NUM > 2                // This count differs from available usable SPI count based on SPIx_HOST
+  AGPIO(GPIO_ETH_PHY_MDC) + AGMAX(MAX_SPI),
+#else
   AGPIO(GPIO_ETH_PHY_MDC),
+#endif  // CONFIG_SOC_SPI_PERIPH_NUM > 2
   AGPIO(GPIO_ETH_PHY_MDIO),                      // Ethernet
 #endif  // USE_ETHERNET
 #ifdef USE_BIOPDU

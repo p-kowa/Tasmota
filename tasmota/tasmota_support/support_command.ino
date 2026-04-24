@@ -2163,7 +2163,7 @@ void CmndTemplate(void)
     if (JsonTemplate(XdrvMailbox.data)) {
       if (USER_MODULE == Settings->module) { TasmotaGlobal.restart_flag = 2; }
     } else {
-      ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON));
+      ResponseCmndChar_P(PSTR(D_JSON_INVALID_JSON " or Bad Chip Type"));
       error = true;
     }
 #endif // FIRMWARE_MINIMAL
@@ -2954,25 +2954,26 @@ void CmndBatteryPercent(void) {
 void CmndI2cScan(void) {
   // I2CScan   - Scan bus1 then bus2
   bool jsflag = false;
-  if (TasmotaGlobal.i2c_enabled[0]) {
-    I2cScan();
-    jsflag = true;
-  }
-#ifdef USE_I2C_BUS2
-  if (TasmotaGlobal.i2c_enabled[1]) {
-    if (jsflag) {
-      MqttPublishPrefixTopicRulesProcess_P(RESULT_OR_STAT, XdrvMailbox.command);
+  for (uint32_t bus = 0; bus < MAX_I2C; bus++) {
+    if (TasmotaGlobal.i2c_enabled[bus]) {
+      if (jsflag) {
+        MqttPublishPrefixTopicRulesProcess_P(RESULT_OR_STAT, XdrvMailbox.command);
+      }
+      I2cScan(bus);
+      jsflag = true;
     }
-    I2cScan(1);
   }
-#endif  // USE_I2C_BUS2
 }
 
 void CmndI2cDriver(void)
 {
   if (XdrvMailbox.index < MAX_I2C_DRIVERS) {
     if (XdrvMailbox.payload >= 0) {
-      bitWrite(Settings->i2c_drivers[XdrvMailbox.index / 32], XdrvMailbox.index % 32, XdrvMailbox.payload &1);
+      if (XdrvMailbox.index < 96) {
+        bitWrite(Settings->i2c_drivers[XdrvMailbox.index / 32], XdrvMailbox.index % 32, XdrvMailbox.payload &1);
+      } else {
+        bitWrite(Settings->i2c_drivers2[(XdrvMailbox.index / 32) -3], XdrvMailbox.index % 32, XdrvMailbox.payload &1);
+      }
       TasmotaGlobal.restart_flag = 2;
     }
   }
